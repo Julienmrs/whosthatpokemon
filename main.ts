@@ -22,7 +22,9 @@ import {
   Color,
   CylinderGeometry,
   ConeGeometry,
-  Material
+  Material,
+  Raycaster,
+  Vector2
 } from 'three';
 
 
@@ -118,21 +120,39 @@ function loadForm() {
 
 
 
+// Button to guess the right form #TODO: remplacer par les pokemons
+function createButton(label: string, position: { x: number, y: number, z: number }) {
+  let cube = new BoxGeometry(10, 10, 1);
+  let material = new MeshPhongMaterial({ color: 0x808080 });
+  let button = new Mesh(cube, material);
+  button.position.set(position.x, position.y, position.z);
+  return button;
+}
 
+let button1 = createButton("Cube", { x: -20, y: -20, z: -5 });
+let button2 = createButton("Sphere", { x: 0, y: -20, z: -5 });
+let button3 = createButton("Pyramid", { x: 20, y: -20, z: -5 });
+let button4 = createButton("Cylinder", { x: 40, y: -20, z: -5 });
+scene.add(button1);
+scene.add(button2);
+scene.add(button3);
+scene.add(button4);
 
-
-
-{
+{ // add lightpoint
   const color = 0xffffff;
   const intensity = 500;
   const light = new PointLight(color, intensity);
   scene.add(light);
 }
 
+//init
 const clock = new Clock();
-
 let currentShape: Mesh = loadForm();
-// Main loop
+let raycaster = new Raycaster();
+let INTERSECTED: any;
+let pointer = new Vector2(0, 0);
+
+// Main loop / render function
 const animation = () => {
 
   renderer.setAnimationLoop(animation); // requestAnimationFrame() replacement, compatible with XR 
@@ -140,13 +160,36 @@ const animation = () => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
+  raycaster.setFromCamera(pointer, camera);
 
+  const intersects = raycaster.intersectObjects(scene.children, false);
 
-  // can be used in shaders: uniforms.u_time.value = elapsed;
+  if (intersects.length > 0) {
+    if (INTERSECTED != intersects[0].object) {
 
+      if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+      INTERSECTED = intersects[0].object;
+      INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+      INTERSECTED.material.emissive.setHex(0xff0000);
+    }
+
+  } else {
+
+    if (INTERSECTED) INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+    INTERSECTED = null;
+
+  }
 
   renderer.render(scene, camera);
-};
+
+}
+
+
+// can be used in shaders: uniforms.u_time.value = elapsed;
+
+
+renderer.render(scene, camera);
+
 
 animation();
 
@@ -167,7 +210,15 @@ function onWindowResize() {
 
 }
 
+function onPointerMove(event: MouseEvent) {
+
+  pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+  pointer.y = - (event.clientY / window.innerHeight) * 2 + 1;
+
+}
+
 // Change shape on click
+document.addEventListener('mousemove', onPointerMove);
 window.addEventListener("click", () => {
   scene.remove(currentShape);
   currentShape.geometry.dispose();

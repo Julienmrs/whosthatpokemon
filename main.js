@@ -4,7 +4,7 @@
 // Any changes made here will be overwritten.
 // Import only what you need, to help your bundler optimize final code size using tree shaking
 // see https://developer.mozilla.org/en-US/docs/Glossary/Tree_shaking)
-import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, SphereGeometry, PointLight, Color, CylinderGeometry, ConeGeometry } from 'three';
+import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, SphereGeometry, PointLight, Color, CylinderGeometry, ConeGeometry, Raycaster, Vector2 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 // Example of hard link to official repo for data, if needed
 // const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
@@ -72,22 +72,59 @@ function loadForm() {
 //     .setPath('assets/models/{}/gltf/'.replace('{}', idPokemon))
 //     .load('model.gltf', gltfReader);
 // }
-{
+// Button to guess the right form #TODO: remplacer par les pokemons
+function createButton(label, position) {
+    var cube = new BoxGeometry(10, 10, 1);
+    var material = new MeshPhongMaterial({ color: 0x808080 });
+    var button = new Mesh(cube, material);
+    button.position.set(position.x, position.y, position.z);
+    return button;
+}
+var button1 = createButton("Cube", { x: -20, y: -20, z: -5 });
+var button2 = createButton("Sphere", { x: 0, y: -20, z: -5 });
+var button3 = createButton("Pyramid", { x: 20, y: -20, z: -5 });
+var button4 = createButton("Cylinder", { x: 40, y: -20, z: -5 });
+scene.add(button1);
+scene.add(button2);
+scene.add(button3);
+scene.add(button4);
+{ // add lightpoint
     var color = 0xffffff;
     var intensity = 500;
     var light_1 = new PointLight(color, intensity);
     scene.add(light_1);
 }
+//init
 var clock = new Clock();
 var currentShape = loadForm();
-// Main loop
+var raycaster = new Raycaster();
+var INTERSECTED;
+var pointer = new Vector2(0, 0);
+// Main loop / render function
 var animation = function () {
     renderer.setAnimationLoop(animation); // requestAnimationFrame() replacement, compatible with XR 
     var delta = clock.getDelta();
     var elapsed = clock.getElapsedTime();
-    // can be used in shaders: uniforms.u_time.value = elapsed;
+    raycaster.setFromCamera(pointer, camera);
+    var intersects = raycaster.intersectObjects(scene.children, false);
+    if (intersects.length > 0) {
+        if (INTERSECTED != intersects[0].object) {
+            if (INTERSECTED)
+                INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+            INTERSECTED = intersects[0].object;
+            INTERSECTED.currentHex = INTERSECTED.material.emissive.getHex();
+            INTERSECTED.material.emissive.setHex(0xff0000);
+        }
+    }
+    else {
+        if (INTERSECTED)
+            INTERSECTED.material.emissive.setHex(INTERSECTED.currentHex);
+        INTERSECTED = null;
+    }
     renderer.render(scene, camera);
 };
+// can be used in shaders: uniforms.u_time.value = elapsed;
+renderer.render(scene, camera);
 animation();
 window.addEventListener('resize', onWindowResize, false);
 // Resize responsive
@@ -101,7 +138,12 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
+function onPointerMove(event) {
+    pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
+    pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+}
 // Change shape on click
+document.addEventListener('mousemove', onPointerMove);
 window.addEventListener("click", function () {
     scene.remove(currentShape);
     currentShape.geometry.dispose();
