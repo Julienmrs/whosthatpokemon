@@ -39,6 +39,12 @@ import {
 import { seededRandom } from 'three/src/math/MathUtils.js';
 import { int } from 'three/src/nodes/tsl/TSLBase.js';
 
+
+import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
+import { Font } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+import { createText } from 'three/examples/jsm/webxr/Text2D.js';
+
 // Example of hard link to official repo for data, if needed
 // const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
 
@@ -49,11 +55,29 @@ const scene = new Scene();
 scene.background = new Color(0xffffff);
 const aspect = window.innerWidth / window.innerHeight;
 const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
-camera.position.set(0, 50, 0);
-camera.up.set(0, 0, 1);
-camera.lookAt(0, 0, 0);
+camera.position.set(0, 0, 55);
+// camera.up.set(0, 0, 0);
+// camera.lookAt(0, 0, 0);
 const light = new AmbientLight(0xffffff, 1.0); // soft white light
 scene.add(light);
+
+const buttonSize = 10;
+let font: Font;
+
+const loader = new TTFLoader();
+
+function fontLoad() {
+  loader.load('assets/fonts/kenpixel.ttf', function (json) {
+    console.log("Font loaded");
+    font = new Font(json);
+    addTextToButtons();
+  });
+}
+
+
+
+
+
 
 const renderer = new WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -62,10 +86,67 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.listenToKeyEvents(window); // optional
 
+
+function createTextMesh(label: string, id: number): Mesh {
+
+  const textGeo = new TextGeometry(label, {
+    font: font,
+    size: .8,          // petit pour rentrer sur le bouton
+    depth: 1,
+    curveSegments: 4,
+    bevelEnabled: false
+  });
+
+  textGeo.computeBoundingBox();
+  textGeo.computeVertexNormals();
+  if (!textGeo.boundingBox) {
+    console.error("Failed to compute bounding box for text geometry.");
+    return new Mesh(); // Return an empty mesh as a fallback
+  }
+  const centerOffset = - 0.5 * (textGeo.boundingBox.max.x - textGeo.boundingBox.min.x);
+
+
+  const textMaterial = new MeshPhongMaterial({ color: 0xffffff });
+
+  const textMesh = new Mesh(textGeo, textMaterial);
+  textMesh.name = "text" + id; // Set the name to identify the text mesh
+
+  // textMesh.rotation.x = Math.PI / 2;
+  // textMesh.rotation.y = Math.PI;
+  textMesh.position.x = centerOffset; // adjust horizontally
+  textMesh.position.y = 0; // in front of the button
+  textMesh.position.z = 4.3; // vertically
+
+
+  return textMesh;
+}
+
+function addTextToButtons() {
+
+  const labels = ["Cube", "Sphere", "Pyramid", "Cylinder"];
+
+  buttons.forEach((button, index) => {
+
+    const textMesh = createTextMesh(labels[index], index);
+
+    // Attacher le texte au bouton
+    button.add(textMesh);
+
+  });
+}
+
+
 function randomPokemonIndex(range: number = 151) {
   const randomIndex = Math.floor(Math.random() * range) + 1; // +1 to get a number between 1 and range
   const formattedNumber = String(randomIndex).padStart(3, '0');
   return formattedNumber;
+}
+
+
+function randomChoice() {
+  const rdm = Number(randomPokemonIndex(4));
+  const formtype = ["", "Cube", "Sphere", "Pyramid", "Cylinder"][rdm]; // Pour avoir une forme aleatoire parmi les 4 #TODO renplacer par les pokemons 
+  return formtype;
 }
 
 function gltfReader(gltf: GLTF) {
@@ -81,17 +162,11 @@ function gltfReader(gltf: GLTF) {
   }
 }
 
-function randomChoice() {
-  const rdm = Number(randomPokemonIndex(3));
-  const form = ["", "Cube", "Sphere", "Pyramid", "Cylinder"][rdm]; // Pour avoir une forme aleatoire parmi les 4 #TODO renplacer par les pokemons 
-  return form;
-}
-
 function loadForm() {
-  const form = randomChoice();  // TODO: remplacer par les modeles de pokemons
+  const formtype = randomChoice();  // TODO: remplacer par les modeles de pokemons
   let geometry;
 
-  switch (form) {
+  switch (formtype) {
     case "Cube":
       geometry = new BoxGeometry(10, 10, 10);
       break;
@@ -106,37 +181,49 @@ function loadForm() {
       break;
 
   }
-  const material = new MeshPhongMaterial({ color: 0x000000 });
-  const mesh = new Mesh(geometry, material);
-  return mesh;
+
+  const materialForm = new MeshPhongMaterial({ color: 0x444444 });
+  const form = new Mesh(geometry, materialForm);
+  form.position.set(0, 0, 0);
+  form.name = "form"; // Set the name to identify the form
+  return form;
 }
 
-// function loadData() {
-//   const idPokemon = randomPokemonIndex();
-//   new GLTFLoader()
-//     .setPath('assets/models/{}/gltf/'.replace('{}', idPokemon))
-//     .load('model.gltf', gltfReader);
-// }
 
+
+function loadData() {
+  const idPokemon: string = "001"; // randomPokemonIndex(); // TODO: remplacer par les pokemons
+
+  new GLTFLoader()
+    .setPath('/assets/models/001/glTF/')
+    .load('model.gltf', gltfReader);
+}
+loadData();
 
 
 // Button to guess the right form #TODO: remplacer par les pokemons
-function createButton(label: string, position: { x: number, y: number, z: number }) {
-  let cube = new BoxGeometry(10, 10, 1);
+function createButton(position: { x: number, y: number, z: number }) {
+  let cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
   let material = new MeshPhongMaterial({ color: 0x808080 });
   let button = new Mesh(cube, material);
   button.position.set(position.x, position.y, position.z);
   return button;
 }
+// Buttons 
+let button1 = createButton({ x: -30, y: -10, z: 20 });
+let button2 = createButton({ x: -10, y: -10, z: 20 });
+let button3 = createButton({ x: 10, y: -10, z: 20 });
+let button4 = createButton({ x: 30, y: -10, z: 20 });
 
-let button1 = createButton("Cube", { x: -20, y: -20, z: -5 });
-let button2 = createButton("Sphere", { x: 0, y: -20, z: -5 });
-let button3 = createButton("Pyramid", { x: 20, y: -20, z: -5 });
-let button4 = createButton("Cylinder", { x: 40, y: -20, z: -5 });
-scene.add(button1);
-scene.add(button2);
-scene.add(button3);
-scene.add(button4);
+let buttons = [button1, button2, button3, button4];
+
+buttons.forEach((button, index) => {
+  button.name = "button" + index; // Set the name to identify the buttons
+  scene.add(button);
+});
+
+
+fontLoad();
 
 { // add lightpoint
   const color = 0xffffff;
@@ -152,6 +239,9 @@ let raycaster = new Raycaster();
 let INTERSECTED: any;
 let pointer = new Vector2(0, 0);
 
+
+// console.log(scene.children); //debug to see the objects in the scene
+
 // Main loop / render function
 const animation = () => {
 
@@ -160,9 +250,10 @@ const animation = () => {
   const delta = clock.getDelta();
   const elapsed = clock.getElapsedTime();
 
+  // intersection detection
   raycaster.setFromCamera(pointer, camera);
 
-  const intersects = raycaster.intersectObjects(scene.children, false);
+  const intersects = raycaster.intersectObjects(buttons, false);
 
   if (intersects.length > 0) {
     if (INTERSECTED != intersects[0].object) {
@@ -226,4 +317,6 @@ window.addEventListener("click", () => {
 
   currentShape = loadForm();
   scene.add(currentShape);
+  console.log(scene.children);
+
 });
