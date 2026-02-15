@@ -68,7 +68,8 @@ scene.add(light);
 
 const buttonSize = 10;
 let font: Font;
-
+let currentShape: Mesh;
+let currentForm: string;
 const loader = new TTFLoader();
 
 function fontLoad() {
@@ -150,7 +151,7 @@ function randomPokemonIndex(range: number = 151) {
 
 function randomChoice() {
     const rdm = Number(randomPokemonIndex(4));
-    const formtype = ["", "Cube", "Sphere", "Pyramid", "Cylinder"][rdm]; // Pour avoir une forme aleatoire parmi les 4 #TODO renplacer par les pokemons 
+    const formtype: string = ["", "Cube", "Sphere", "Pyramid", "Cylinder"][rdm]; // Pour avoir une forme aleatoire parmi les 4 #TODO renplacer par les pokemons 
     return formtype;
 }
 
@@ -191,7 +192,7 @@ function loadForm() {
     const materialForm = new MeshPhongMaterial({ color: 0x444444 });
     const form = new Mesh(geometry, materialForm);
     form.position.set(0, 0, 0);
-    form.name = "form"; // Set the name to identify the form
+    form.name = formtype; // Set the name to identify the form
     return form;
 }
 
@@ -208,25 +209,23 @@ loadData();
 
 
 // Button to guess the right form #TODO: remplacer par les pokemons
-function createButton(position: { x: number, y: number, z: number }) {
+function createButton(label: string, position: { x: number, y: number, z: number }) {
     let cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
     let material = new MeshPhongMaterial({ color: 0x808080 });
     let button = new Mesh(cube, material);
+    button.name = label; // Set the name to identify the button
     button.position.set(position.x, position.y, position.z);
     return button;
 }
 // Buttons 
-let button1 = createButton({ x: -30, y: -10, z: 20 });
-let button2 = createButton({ x: -10, y: -10, z: 20 });
-let button3 = createButton({ x: 10, y: -10, z: 20 });
-let button4 = createButton({ x: 30, y: -10, z: 20 });
+let button1 = createButton("Cube", { x: -30, y: -10, z: 20 });
+let button2 = createButton("Sphere", { x: -10, y: -10, z: 20 });
+let button3 = createButton("Pyramid", { x: 10, y: -10, z: 20 });
+let button4 = createButton("Cylinder", { x: 30, y: -10, z: 20 });
 
 let buttons = [button1, button2, button3, button4];
 
-buttons.forEach((button, index) => {
-    button.name = "button" + index; // Set the name to identify the buttons
-    scene.add(button);
-});
+buttons.forEach(button => scene.add(button));
 
 
 fontLoad();
@@ -241,7 +240,7 @@ fontLoad();
 //init
 //init
 const clock = new Clock();
-let currentShape: Mesh = loadForm();
+currentShape = loadForm();
 let raycaster = new Raycaster();
 let INTERSECTED: any;
 let pointer = new Vector2(0, 0);
@@ -255,7 +254,7 @@ let pointer = new Vector2(0, 0);
 const animation = () => {
 
     renderer.setAnimationLoop(animation); // requestAnimationFrame() replacement, compatible with XR 
-
+    scene.add(currentShape)
     const delta = clock.getDelta();
     const elapsed = clock.getElapsedTime();
 
@@ -320,16 +319,31 @@ function onPointerMove(event: MouseEvent) {
 
 }
 
-// Change shape on click
-document.addEventListener('mousemove', onPointerMove);
-document.addEventListener('mousemove', onPointerMove);
-window.addEventListener("click", () => {
+function try_onClick(event: MouseEvent) {
+    raycaster.setFromCamera(pointer, camera);
+
+    const intersects = raycaster.intersectObjects(buttons, false);
+
+    if (intersects.length > 0) {
+        const clickedButton = intersects[0].object;
+        // console.log("Clicked on button: " + clickedButton.name);
+        // console.log("Current shape: " + currentShape.name);
+        console.log(currentShape.name === clickedButton.name); // Check if the names match
+        // Here you can add logic to check if the clicked button corresponds to the current shape
+        changeShape();
+    }
+}
+
+function changeShape() {
     scene.remove(currentShape);
     currentShape.geometry.dispose();
     (currentShape.material as Material).dispose();
 
     currentShape = loadForm();
     scene.add(currentShape);
-    console.log(scene.children);
+    // console.log(scene.children);
 
-});
+}
+
+document.addEventListener('click', try_onClick);
+document.addEventListener('mousemove', onPointerMove);

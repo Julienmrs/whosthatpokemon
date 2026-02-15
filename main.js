@@ -20,10 +20,15 @@ var camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
 // camera.up.set(0, 0, 0);
 // camera.lookAt(0, 0, 0);
+camera.position.set(0, 0, 55);
+// camera.up.set(0, 0, 0);
+// camera.lookAt(0, 0, 0);
 var light = new AmbientLight(0xffffff, 1.0); // soft white light
 scene.add(light);
 var buttonSize = 10;
 var font;
+var currentShape;
+var currentForm;
 var loader = new TTFLoader();
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
@@ -86,6 +91,7 @@ function gltfReader(gltf) {
     testModel = gltf.scene;
     if (testModel != null) {
         console.log("Model loaded:  " + testModel);
+        gltf.scene.position.set(0, -10, -50);
         scene.add(gltf.scene);
     }
     else {
@@ -112,34 +118,32 @@ function loadForm() {
     var materialForm = new MeshPhongMaterial({ color: 0x444444 });
     var form = new Mesh(geometry, materialForm);
     form.position.set(0, 0, 0);
-    form.name = "form"; // Set the name to identify the form
+    form.name = formtype; // Set the name to identify the form
     return form;
 }
 function loadData() {
     var idPokemon = "001"; // randomPokemonIndex(); // TODO: remplacer par les pokemons
     new GLTFLoader()
-        .setPath('/assets/models/001/glTF/')
-        .load('model.gltf', gltfReader);
+        .setPath('/assets/models/001/')
+        .load('Bulbasaur.glb', gltfReader);
 }
 loadData();
 // Button to guess the right form #TODO: remplacer par les pokemons
-function createButton(position) {
+function createButton(label, position) {
     var cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
     var material = new MeshPhongMaterial({ color: 0x808080 });
     var button = new Mesh(cube, material);
+    button.name = label; // Set the name to identify the button
     button.position.set(position.x, position.y, position.z);
     return button;
 }
 // Buttons 
-var button1 = createButton({ x: -30, y: -10, z: 20 });
-var button2 = createButton({ x: -10, y: -10, z: 20 });
-var button3 = createButton({ x: 10, y: -10, z: 20 });
-var button4 = createButton({ x: 30, y: -10, z: 20 });
+var button1 = createButton("Cube", { x: -30, y: -10, z: 20 });
+var button2 = createButton("Sphere", { x: -10, y: -10, z: 20 });
+var button3 = createButton("Pyramid", { x: 10, y: -10, z: 20 });
+var button4 = createButton("Cylinder", { x: 30, y: -10, z: 20 });
 var buttons = [button1, button2, button3, button4];
-buttons.forEach(function (button, index) {
-    button.name = "button" + index; // Set the name to identify the buttons
-    scene.add(button);
-});
+buttons.forEach(function (button) { return scene.add(button); });
 fontLoad();
 { // add lightpoint
     var color = 0xffffff;
@@ -148,8 +152,9 @@ fontLoad();
     scene.add(light_1);
 }
 //init
+//init
 var clock = new Clock();
-var currentShape = loadForm();
+currentShape = loadForm();
 var raycaster = new Raycaster();
 var INTERSECTED;
 var pointer = new Vector2(0, 0);
@@ -157,6 +162,7 @@ var pointer = new Vector2(0, 0);
 // Main loop / render function
 var animation = function () {
     renderer.setAnimationLoop(animation); // requestAnimationFrame() replacement, compatible with XR 
+    scene.add(currentShape);
     var delta = clock.getDelta();
     var elapsed = clock.getElapsedTime();
     // intersection detection
@@ -179,6 +185,8 @@ var animation = function () {
     renderer.render(scene, camera);
 };
 // can be used in shaders: uniforms.u_time.value = elapsed;
+// can be used in shaders: uniforms.u_time.value = elapsed;
+renderer.render(scene, camera);
 renderer.render(scene, camera);
 animation();
 window.addEventListener('resize', onWindowResize, false);
@@ -197,14 +205,26 @@ function onPointerMove(event) {
     pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
     pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
 }
-// Change shape on click
-document.addEventListener('mousemove', onPointerMove);
-window.addEventListener("click", function () {
+function try_onClick(event) {
+    raycaster.setFromCamera(pointer, camera);
+    var intersects = raycaster.intersectObjects(buttons, false);
+    if (intersects.length > 0) {
+        var clickedButton = intersects[0].object;
+        // console.log("Clicked on button: " + clickedButton.name);
+        // console.log("Current shape: " + currentShape.name);
+        console.log(currentShape.name === clickedButton.name); // Check if the names match
+        // Here you can add logic to check if the clicked button corresponds to the current shape
+        changeShape();
+    }
+}
+function changeShape() {
     scene.remove(currentShape);
     currentShape.geometry.dispose();
     currentShape.material.dispose();
     currentShape = loadForm();
     scene.add(currentShape);
-    console.log(scene.children);
-});
+    // console.log(scene.children);
+}
+document.addEventListener('click', try_onClick);
+document.addEventListener('mousemove', onPointerMove);
 //# sourceMappingURL=main.js.map
