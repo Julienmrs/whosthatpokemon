@@ -24,7 +24,11 @@ import {
     ConeGeometry,
     Material,
     Raycaster,
-    Vector2
+    Vector2,
+    Timer,
+    Box3,
+    Vector3,
+    Object3D
 } from 'three';
 
 
@@ -43,34 +47,39 @@ import { int } from 'three/src/nodes/tsl/TSLBase.js';
 import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
 import { Font } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-import { createText } from 'three/examples/jsm/webxr/Text2D.js';
 
 
 
-// Example of hard link to official repo for data, if needed
-// const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
+
 
 
 // INSERT CODE HERE
 
+// Init
 const scene = new Scene();
 scene.background = new Color(0xffffff);
 const aspect = window.innerWidth / window.innerHeight;
 const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
-// camera.up.set(0, 0, 0);
-// camera.lookAt(0, 0, 0);
-camera.position.set(0, 0, 55);
-// camera.up.set(0, 0, 0);
-// camera.lookAt(0, 0, 0);
 const light = new AmbientLight(0xffffff, 1.0); // soft white light
+const renderer = new WebGLRenderer();
 scene.add(light);
 
 const buttonSize = 10;
 let font: Font;
+
+const loader = new TTFLoader();
 let currentShape: Mesh;
 let currentForm: string;
-const loader = new TTFLoader();
+let pokemonModel: Object3D | null = null;
+currentShape = loadForm();
+
+let raycaster = new Raycaster();
+let INTERSECTED: any;
+let pointer = new Vector2(0, 0);
+
+const clock = new Clock();
+
 
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
@@ -81,11 +90,6 @@ function fontLoad() {
 }
 
 
-
-
-
-
-const renderer = new WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
@@ -156,12 +160,11 @@ function randomChoice() {
 }
 
 function gltfReader(gltf: GLTF) {
-    let testModel = null;
 
-    testModel = gltf.scene;
+    pokemonModel = gltf.scene;
 
-    if (testModel != null) {
-        console.log("Model loaded:  " + testModel);
+    if (pokemonModel != null) {
+        console.log("Model loaded:  " + pokemonModel.name);
         gltf.scene.position.set(0, -10, -50);
         scene.add(gltf.scene);
     } else {
@@ -224,7 +227,6 @@ let button3 = createButton("Pyramid", { x: 10, y: -10, z: 20 });
 let button4 = createButton("Cylinder", { x: 30, y: -10, z: 20 });
 
 let buttons = [button1, button2, button3, button4];
-
 buttons.forEach(button => scene.add(button));
 
 
@@ -237,27 +239,26 @@ fontLoad();
     scene.add(light);
 }
 
-//init
-//init
-const clock = new Clock();
-currentShape = loadForm();
-let raycaster = new Raycaster();
-let INTERSECTED: any;
-let pointer = new Vector2(0, 0);
 
 
 // console.log(scene.children); //debug to see the objects in the scene
 
 
-
+const timer = new Timer();
+scene.add(currentShape)
+timer.connect(document);
 // Main loop / render function
 const animation = () => {
 
     renderer.setAnimationLoop(animation); // requestAnimationFrame() replacement, compatible with XR 
-    scene.add(currentShape)
-    const delta = clock.getDelta();
-    const elapsed = clock.getElapsedTime();
 
+    timer.update();
+    //const delta = timer.getDelta();
+    const elapsed = timer.getElapsed();
+    if (pokemonModel) {
+        // pokemonModel.rotation.x = elapsed / 2;
+        pokemonModel.rotation.y = elapsed / 1;
+    }
     // intersection detection
     raycaster.setFromCamera(pointer, camera);
 
@@ -283,20 +284,9 @@ const animation = () => {
 
 }
 
-
-// can be used in shaders: uniforms.u_time.value = elapsed;
-// can be used in shaders: uniforms.u_time.value = elapsed;
-
-
-renderer.render(scene, camera);
-
-renderer.render(scene, camera);
-
-
 animation();
 
 window.addEventListener('resize', onWindowResize, false);
-
 
 // Resize responsive
 window.addEventListener("resize", () => {
@@ -329,7 +319,6 @@ function try_onClick(event: MouseEvent) {
         // console.log("Clicked on button: " + clickedButton.name);
         // console.log("Current shape: " + currentShape.name);
         console.log(currentShape.name === clickedButton.name); // Check if the names match
-        // Here you can add logic to check if the clicked button corresponds to the current shape
         changeShape();
     }
 }
