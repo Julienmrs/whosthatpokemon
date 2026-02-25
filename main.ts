@@ -164,9 +164,9 @@ function gltfReader(gltf: GLTF) {
     pokemonModel = gltf.scene;
 
     if (pokemonModel != null) {
-        console.log("Model loaded:  " + pokemonModel.name);
         gltf.scene.position.set(0, -10, -50);
-        scene.add(gltf.scene);
+        scene.add(pokemonModel);
+        console.log("Model loaded:  " + pokemonModel.name);
     } else {
         console.log("Load FAILED.  ");
     }
@@ -205,8 +205,8 @@ function loadData() {
     const idPokemon: string = "001"; // randomPokemonIndex(); // TODO: remplacer par les pokemons
 
     new GLTFLoader()
-        .setPath('/assets/models/001/')
-        .load('Bulbasaur.glb', gltfReader);
+        .setPath('/assets/models/010')
+        .load('/model.glb', gltfReader);
 }
 loadData();
 
@@ -332,6 +332,37 @@ function changeShape() {
     scene.add(currentShape);
     // console.log(scene.children);
 
+}
+
+function convertGLTFModel(gltf: GLTF, desiredSize = 25): Object3D {
+
+    const model = gltf.scene;
+
+    model.traverse((obj) => {
+        if ((obj as Mesh).isMesh) {
+            const mesh = obj as Mesh;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+        }
+    });
+
+    const box = new Box3().setFromObject(model);
+    const size = box.getSize(new Vector3());
+    const center = box.getCenter(new Vector3());
+
+    const maxAxis = Math.max(size.x, size.y, size.z);
+    const scale = desiredSize / maxAxis;
+    model.scale.setScalar(scale);
+
+    box.setFromObject(model);
+    const newCenter = box.getCenter(new Vector3());
+
+    model.position.sub(newCenter);
+
+    box.setFromObject(model);
+    model.position.y -= box.min.y;
+
+    return model;
 }
 
 document.addEventListener('click', try_onClick);
