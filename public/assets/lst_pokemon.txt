@@ -138,4 +138,3 @@ Weepinbell
 Weezing
 Wigglytuff
 Zapdos
-rename_models.py

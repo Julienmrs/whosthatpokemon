@@ -40,7 +40,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 // Any changes made here will be overwritten.
 // Import only what you need, to help your bundler optimize final code size using tree shaking
 // see https://developer.mozilla.org/en-US/docs/Glossary/Tree_shaking)
-import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, Color, Raycaster, Vector2, Timer, Box3, Vector3, MeshBasicMaterial, HemisphereLight, DirectionalLight } from 'three';
+import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, Color, Raycaster, Vector2, Timer, Box3, Vector3, MeshBasicMaterial, HemisphereLight, DirectionalLight, MeshToonMaterial, NearestFilter, DataTexture, RGBAFormat, } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
@@ -53,6 +53,8 @@ scene.background = new Color(0xffffff);
 var aspect = window.innerWidth / window.innerHeight;
 var camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
+camera.layers.enable(0);
+camera.layers.enable(1);
 var light = new AmbientLight(0xffffff, 1); // soft white light
 var dirLight = new DirectionalLight(0xffffff, 3);
 dirLight.position.set(10, 20, 10);
@@ -61,6 +63,14 @@ var hemiLight = new HemisphereLight(0xffffff, 0x444444, 2);
 scene.add(hemiLight);
 var renderer = new WebGLRenderer();
 scene.add(light);
+var pokemonLight = new DirectionalLight(0xffffff, 3);
+pokemonLight.position.set(10, 20, 10);
+pokemonLight.layers.set(1); // n’éclaire que le layer 1
+scene.add(pokemonLight);
+light.layers.set(0);
+dirLight.layers.set(0);
+hemiLight.layers.disable(1);
+hemiLight.layers.enable(0);
 var originalAmbientColor = light.color.clone();
 var originalDirColor = dirLight.color.clone();
 var originalHemiSkyColor = hemiLight.color.clone();
@@ -78,6 +88,16 @@ var lstPokemon = [];
 var clock = new Clock();
 var score = 0;
 var cdtBlock = false;
+var datatexture = new Uint8Array([
+    0, 0, 0, 255,
+    128, 128, 128, 255,
+    200, 200, 200, 255,
+    255, 255, 255, 255
+]);
+var toonGradient = new DataTexture(datatexture, 4, 1, RGBAFormat);
+toonGradient.needsUpdate = true;
+toonGradient.minFilter = NearestFilter;
+toonGradient.magFilter = NearestFilter;
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
         console.log("Font loaded");
@@ -131,6 +151,9 @@ function gltfReader(gltf) {
             // mesh.material = originalMaterials.get(mesh)!;
         }
     });
+    model.traverse(function (obj) {
+        obj.layers.set(1);
+    });
     if (currentPokemon) {
         scene.remove(currentPokemon);
     }
@@ -162,10 +185,12 @@ function createButton(label, position) {
     return button;
 }
 // Buttons 
-var button1 = createButton("Button1", { x: -30, y: -10, z: 20 });
-var button2 = createButton("Button2", { x: -10, y: -10, z: 20 });
-var button3 = createButton("Button3", { x: 10, y: -10, z: 20 });
-var button4 = createButton("Button4", { x: 30, y: -10, z: 20 });
+var button1 = createButton("Button1", { x: -23, y: -10, z: 25 });
+var button2 = createButton("Button2", { x: -8, y: -10, z: 20 });
+var button3 = createButton("Button3", { x: 8, y: -10, z: 20 });
+var button4 = createButton("Button4", { x: 23, y: -10, z: 25 });
+button1.rotateY(0.6);
+button4.rotateY(-0.6);
 var buttons = [button1, button2, button3, button4];
 buttons.forEach(function (button) { return scene.add(button); });
 function createTextMesh(label, id) {
@@ -193,6 +218,7 @@ function createTextMesh(label, id) {
 }
 function addTextToButtons() {
     var randomPokemonNames = [currentPokemonName];
+    console.log(randomPokemonNames);
     while (randomPokemonNames.length < buttons.length) {
         var randomIndex = Math.floor(Math.random() * lstPokemon.length);
         var pokemonName = lstPokemon[randomIndex];
@@ -201,6 +227,7 @@ function addTextToButtons() {
         }
     }
     shuffle(randomPokemonNames);
+    console.log(randomPokemonNames);
     buttons.forEach(function (button, index) {
         button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
         var textMesh = createTextMesh(randomPokemonNames[index], index);
@@ -227,7 +254,7 @@ var animation = function () {
     //const delta = timer.getDelta();
     var elapsed = timer.getElapsed();
     if (currentPokemon) {
-        currentPokemon.rotation.y = elapsed * 0.5;
+        currentPokemon.rotation.y = elapsed * 0.7;
     }
     // intersection detection
     raycaster.setFromCamera(pointer, camera);
@@ -309,17 +336,37 @@ function revealPokemon() {
     if (!currentPokemon)
         return;
     currentPokemon.traverse(function (obj) {
+        var _a;
         if (obj.isMesh) {
             var mesh = obj;
             if (originalMaterials.has(mesh)) {
-                var material = originalMaterials.get(mesh);
-                if (material) {
-                    mesh.material = material;
+                var material_1 = originalMaterials.get(mesh);
+                if (!material_1)
+                    return;
+                if (Array.isArray(material_1)) {
+                    mesh.material = material_1.map(function (mat) {
+                        var _a;
+                        return new MeshToonMaterial({
+                            map: (_a = mat.map) !== null && _a !== void 0 ? _a : null,
+                            color: 0xffffff,
+                            gradientMap: toonGradient
+                        });
+                    });
+                }
+                else {
+                    mesh.material = new MeshToonMaterial({
+                        map: (_a = material_1.map) !== null && _a !== void 0 ? _a : null,
+                        color: 0xffffff,
+                        gradientMap: toonGradient
+                    });
                 }
             }
         }
     });
 }
+var material = new MeshToonMaterial({
+    color: new Color().setHSL(1, 0.5, 1 * 0.5 + 0.1).multiplyScalar(1 - 1 * 0.2),
+});
 function correctAnswer() {
     score += 1;
     flashLights(0x00ff00);

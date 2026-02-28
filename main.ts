@@ -31,7 +31,11 @@ import {
     Object3D,
     MeshBasicMaterial,
     HemisphereLight,
-    DirectionalLight
+    DirectionalLight,
+    MeshToonMaterial,
+    NearestFilter,
+    DataTexture,
+    RGBAFormat,
 } from 'three';
 
 
@@ -73,6 +77,14 @@ const hemiLight = new HemisphereLight(0xffffff, 0x444444, 2);
 scene.add(hemiLight);
 const renderer = new WebGLRenderer();
 scene.add(light);
+const pokemonLight = new DirectionalLight(0xffffff, 3);
+pokemonLight.position.set(10, 20, 10);
+pokemonLight.layers.set(1); // n’éclaire que le layer 1
+scene.add(pokemonLight);
+light.layers.set(0);
+dirLight.layers.set(0);
+hemiLight.layers.disable(1);
+hemiLight.layers.enable(0);
 const originalAmbientColor = light.color.clone();
 const originalDirColor = dirLight.color.clone();
 const originalHemiSkyColor = hemiLight.color.clone();
@@ -94,6 +106,18 @@ const clock = new Clock();
 let score = 0;
 
 let cdtBlock = false;
+
+const datatexture = new Uint8Array([
+    0, 0, 0, 255,
+    128, 128, 128, 255,
+    200, 200, 200, 255,
+    255, 255, 255, 255
+]);
+const toonGradient = new DataTexture(datatexture, 4, 1, RGBAFormat);
+toonGradient.needsUpdate = true;
+toonGradient.minFilter = NearestFilter;
+toonGradient.magFilter = NearestFilter;
+
 
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
@@ -136,7 +160,6 @@ function randomPokemon(): string {
 function gltfReader(gltf: GLTF) {
     const model = convertGLTFModel(gltf, 25);
     model.traverse((obj) => {
-        obj.layers.set(1); // layer 1 pour les Pokémon
         if ((obj as Mesh).isMesh) {
             const mesh = obj as Mesh;
             originalMaterials.set(mesh, mesh.material);
@@ -146,6 +169,9 @@ function gltfReader(gltf: GLTF) {
             // mesh.material = originalMaterials.get(mesh)!;
         }
     });
+    model.traverse((obj) => {
+        obj.layers.set(1);
+    })
     if (currentPokemon) { scene.remove(currentPokemon) }
     currentPokemon = model;
     scene.add(currentPokemon);
@@ -179,10 +205,12 @@ function createButton(label: string, position: { x: number, y: number, z: number
     return button;
 }
 // Buttons 
-let button1 = createButton("Button1", { x: -30, y: -10, z: 20 });
-let button2 = createButton("Button2", { x: -10, y: -10, z: 20 });
-let button3 = createButton("Button3", { x: 10, y: -10, z: 20 });
-let button4 = createButton("Button4", { x: 30, y: -10, z: 20 });
+let button1 = createButton("Button1", { x: -23, y: -10, z: 25 });
+let button2 = createButton("Button2", { x: -8, y: -10, z: 20 });
+let button3 = createButton("Button3", { x: 8, y: -10, z: 20 });
+let button4 = createButton("Button4", { x: 23, y: -10, z: 25 });
+button1.rotateY(0.6)
+button4.rotateY(-0.6)
 
 let buttons = [button1, button2, button3, button4];
 buttons.forEach(button => scene.add(button));
@@ -221,6 +249,7 @@ function createTextMesh(label: string, id: number): Mesh {
 function addTextToButtons() {
 
     const randomPokemonNames = [currentPokemonName];
+    console.log(randomPokemonNames)
     while (randomPokemonNames.length < buttons.length) {
         const randomIndex = Math.floor(Math.random() * lstPokemon.length);
         const pokemonName = lstPokemon[randomIndex];
@@ -229,6 +258,7 @@ function addTextToButtons() {
         }
     }
     shuffle(randomPokemonNames);
+    console.log(randomPokemonNames)
     buttons.forEach((button, index) => {
         button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
         const textMesh = createTextMesh(randomPokemonNames[index], index);
@@ -261,7 +291,7 @@ const animation = () => {
     //const delta = timer.getDelta();
     const elapsed = timer.getElapsed();
     if (currentPokemon) {
-        currentPokemon.rotation.y = elapsed * 0.5;
+        currentPokemon.rotation.y = elapsed * 0.7;
     }
     // intersection detection
     raycaster.setFromCamera(pointer, camera);
@@ -369,13 +399,33 @@ function revealPokemon() {
             const mesh = obj as Mesh;
             if (originalMaterials.has(mesh)) {
                 const material = originalMaterials.get(mesh);
-                if (material) {
-                    mesh.material = material;
+                if (!material) return;
+
+                if (Array.isArray(material)) {
+                    mesh.material = material.map(mat =>
+                        new MeshToonMaterial({
+                            map: (mat as any).map ?? null,
+                            color: 0xffffff,
+                            gradientMap: toonGradient
+                        })
+                    );
+                }
+                else {
+                    mesh.material = new MeshToonMaterial({
+                        map: (material as any).map ?? null,
+                        color: 0xffffff,
+                        gradientMap: toonGradient
+                    });
                 }
             }
         }
     });
 }
+const material = new MeshToonMaterial({
+    color: new Color().setHSL(1, 0.5, 1 * 0.5 + 0.1).multiplyScalar(1 - 1 * 0.2),
+
+});
+
 
 function correctAnswer() {
     score += 1;
