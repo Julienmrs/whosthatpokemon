@@ -28,7 +28,10 @@ import {
     Timer,
     Box3,
     Vector3,
-    Object3D
+    Object3D,
+    MeshBasicMaterial,
+    HemisphereLight,
+    DirectionalLight
 } from 'three';
 
 
@@ -40,13 +43,11 @@ import {
     GLTF,
     GLTFLoader
 } from 'three/addons/loaders/GLTFLoader.js';
-import { seededRandom } from 'three/src/math/MathUtils.js';
-import { int } from 'three/src/nodes/tsl/TSLBase.js';
-
 
 import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
 import { Font } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
 
 
 
@@ -61,7 +62,12 @@ scene.background = new Color(0xffffff);
 const aspect = window.innerWidth / window.innerHeight;
 const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
-const light = new AmbientLight(0xffffff, 1.0); // soft white light
+const light = new AmbientLight(0xffffff, 1); // soft white light
+const dirLight = new DirectionalLight(0xffffff, 3);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+const hemiLight = new HemisphereLight(0xffffff, 0x444444, 2);
+scene.add(hemiLight);
 const renderer = new WebGLRenderer();
 scene.add(light);
 
@@ -69,15 +75,14 @@ const buttonSize = 10;
 let font: Font;
 
 const loader = new TTFLoader();
-let currentShape: Mesh;
-let currentForm: string;
-let pokemonModel: Object3D | null = null;
-currentShape = loadForm();
+let currentPokemon: Object3D | null = null;
+let currentPokemonName: string = "";
+const originalMaterials = new Map<Mesh, Material | Material[]>();
 
 let raycaster = new Raycaster();
 let INTERSECTED: any;
 let pointer = new Vector2(0, 0);
-
+let lstPokemon: string[] = [];
 const clock = new Clock();
 
 
@@ -89,6 +94,23 @@ function fontLoad() {
     });
 }
 
+async function listPokemonLoad(): Promise<string[]> {
+    const response = await fetch("/assets/lst_pokemon.txt");
+    const text = await response.text();
+
+    const list = text
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
+    return list;
+}
+
+listPokemonLoad().then(list => {
+    console.log(list);
+    lstPokemon = list;
+});
+
 
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
@@ -96,6 +118,64 @@ document.body.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.listenToKeyEvents(window); // optional
 
+function randomPokemon(): string {
+    if (lstPokemon.length === 0) return "";
+    const randomIndex = Math.floor(Math.random() * lstPokemon.length);
+    return lstPokemon[randomIndex];
+}
+
+function gltfReader(gltf: GLTF) {
+    const model = convertGLTFModel(gltf, 25);
+    model.traverse((obj) => {
+        if ((obj as Mesh).isMesh) {
+            const mesh = obj as Mesh;
+            originalMaterials.set(mesh, mesh.material);
+            mesh.material = new MeshBasicMaterial({
+                color: 0x000000
+            });
+            // mesh.material = originalMaterials.get(mesh)!;
+        }
+    });
+    if (currentPokemon) { scene.remove(currentPokemon) }
+    currentPokemon = model;
+    scene.add(currentPokemon);
+    console.log("Model loaded:  " + currentPokemonName);
+}
+
+function loadData() {
+    const idPokemon: string = randomPokemon();
+    if (!idPokemon) return;
+    currentPokemonName = idPokemon;
+    new GLTFLoader()
+        .setPath('/assets/Pokemon_models/' + idPokemon)
+        .setResourcePath('/assets/Pokemon_models/' + idPokemon + '/images/')
+        .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
+}
+
+listPokemonLoad().then(list => {
+    lstPokemon = list;
+    loadData();
+});
+
+
+
+// Button to guess the right form #TODO: remplacer par les pokemons
+function createButton(label: string, position: { x: number, y: number, z: number }) {
+    let cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
+    let material = new MeshPhongMaterial({ color: 0x808080 });
+    let button = new Mesh(cube, material);
+    button.name = label; // Set the name to identify the button
+    button.position.set(position.x, position.y, position.z);
+    return button;
+}
+// Buttons 
+let button1 = createButton("Button1", { x: -30, y: -10, z: 20 });
+let button2 = createButton("Button2", { x: -10, y: -10, z: 20 });
+let button3 = createButton("Button3", { x: 10, y: -10, z: 20 });
+let button4 = createButton("Button4", { x: 30, y: -10, z: 20 });
+
+let buttons = [button1, button2, button3, button4];
+buttons.forEach(button => scene.add(button));
 
 function createTextMesh(label: string, id: number): Mesh {
 
@@ -121,131 +201,37 @@ function createTextMesh(label: string, id: number): Mesh {
     const textMesh = new Mesh(textGeo, textMaterial);
     textMesh.name = "text" + id; // Set the name to identify the text mesh
 
-    // textMesh.rotation.x = Math.PI / 2;
-    // textMesh.rotation.y = Math.PI;
     textMesh.position.x = centerOffset; // adjust horizontally
     textMesh.position.y = 0; // in front of the button
     textMesh.position.z = 4.3; // vertically
-
 
     return textMesh;
 }
 
 function addTextToButtons() {
 
-    const labels = ["Cube", "Sphere", "Pyramid", "Cylinder"];
-
+    const randomPokemonNames = [currentPokemonName];
+    while (randomPokemonNames.length < buttons.length) {
+        const randomIndex = Math.floor(Math.random() * lstPokemon.length);
+        const pokemonName = lstPokemon[randomIndex];
+        if (!randomPokemonNames.includes(pokemonName) && pokemonName !== currentPokemonName) {
+            randomPokemonNames.push(pokemonName);
+        }
+    }
     buttons.forEach((button, index) => {
-
-        const textMesh = createTextMesh(labels[index], index);
-
+        button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
+        const textMesh = createTextMesh(randomPokemonNames[index], index);
+        button.remove(...button.children); // Remove existing text if any
         // Attacher le texte au bouton
         button.add(textMesh);
 
     });
 }
 
-
-function randomPokemonIndex(range: number = 151) {
-    const randomIndex = Math.floor(Math.random() * range) + 1; // +1 to get a number between 1 and range
-    const formattedNumber = String(randomIndex).padStart(3, '0');
-    return formattedNumber;
-}
-
-
-function randomChoice() {
-    const rdm = Number(randomPokemonIndex(4));
-    const formtype: string = ["", "Cube", "Sphere", "Pyramid", "Cylinder"][rdm]; // Pour avoir une forme aleatoire parmi les 4 #TODO renplacer par les pokemons 
-    return formtype;
-}
-
-function gltfReader(gltf: GLTF) {
-
-    pokemonModel = gltf.scene;
-
-    if (pokemonModel != null) {
-        gltf.scene.position.set(0, -10, -50);
-        scene.add(pokemonModel);
-        console.log("Model loaded:  " + pokemonModel.name);
-    } else {
-        console.log("Load FAILED.  ");
-    }
-}
-
-function loadForm() {
-    const formtype = randomChoice();  // TODO: remplacer par les modeles de pokemons
-    let geometry;
-
-    switch (formtype) {
-        case "Cube":
-            geometry = new BoxGeometry(10, 10, 10);
-            break;
-        case "Sphere":
-            geometry = new SphereGeometry(5, 20, 20);
-            break;
-        case "Pyramid":
-            geometry = new ConeGeometry(5, 10, 4);
-            break;
-        case "Cylinder":
-            geometry = new CylinderGeometry(5, 5, 10, 20);
-            break;
-
-    }
-
-    const materialForm = new MeshPhongMaterial({ color: 0x444444 });
-    const form = new Mesh(geometry, materialForm);
-    form.position.set(0, 0, 0);
-    form.name = formtype; // Set the name to identify the form
-    return form;
-}
-
-
-
-function loadData() {
-    const idPokemon: string = "001"; // randomPokemonIndex(); // TODO: remplacer par les pokemons
-
-    new GLTFLoader()
-        .setPath('/assets/models/010')
-        .load('/model.glb', gltfReader);
-}
-loadData();
-
-
-// Button to guess the right form #TODO: remplacer par les pokemons
-function createButton(label: string, position: { x: number, y: number, z: number }) {
-    let cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
-    let material = new MeshPhongMaterial({ color: 0x808080 });
-    let button = new Mesh(cube, material);
-    button.name = label; // Set the name to identify the button
-    button.position.set(position.x, position.y, position.z);
-    return button;
-}
-// Buttons 
-let button1 = createButton("Cube", { x: -30, y: -10, z: 20 });
-let button2 = createButton("Sphere", { x: -10, y: -10, z: 20 });
-let button3 = createButton("Pyramid", { x: 10, y: -10, z: 20 });
-let button4 = createButton("Cylinder", { x: 30, y: -10, z: 20 });
-
-let buttons = [button1, button2, button3, button4];
-buttons.forEach(button => scene.add(button));
-
-
 fontLoad();
-
-{ // add lightpoint
-    const color = 0xffffff;
-    const intensity = 500;
-    const light = new PointLight(color, intensity);
-    scene.add(light);
-}
-
-
-
-// console.log(scene.children); //debug to see the objects in the scene
 
 
 const timer = new Timer();
-scene.add(currentShape)
 timer.connect(document);
 // Main loop / render function
 const animation = () => {
@@ -255,9 +241,8 @@ const animation = () => {
     timer.update();
     //const delta = timer.getDelta();
     const elapsed = timer.getElapsed();
-    if (pokemonModel) {
-        // pokemonModel.rotation.x = elapsed / 2;
-        pokemonModel.rotation.y = elapsed / 1;
+    if (currentPokemon) {
+        currentPokemon.rotation.y = elapsed * 0.5;
     }
     // intersection detection
     raycaster.setFromCamera(pointer, camera);
@@ -316,43 +301,32 @@ function try_onClick(event: MouseEvent) {
 
     if (intersects.length > 0) {
         const clickedButton = intersects[0].object;
-        // console.log("Clicked on button: " + clickedButton.name);
-        // console.log("Current shape: " + currentShape.name);
-        console.log(currentShape.name === clickedButton.name); // Check if the names match
+        console.log(currentPokemonName === clickedButton.name); // Check if the names match
         changeShape();
+        addTextToButtons();
     }
 }
 
 function changeShape() {
-    scene.remove(currentShape);
-    currentShape.geometry.dispose();
-    (currentShape.material as Material).dispose();
-
-    currentShape = loadForm();
-    scene.add(currentShape);
-    // console.log(scene.children);
-
+    if (!currentPokemon) return;
+    scene.remove(currentPokemon);
+    loadData();
 }
 
-function convertGLTFModel(gltf: GLTF, desiredSize = 25): Object3D {
+function convertGLTFModel(gltf: GLTF, maxAllowedSize = 40): Object3D {
 
     const model = gltf.scene;
-
-    model.traverse((obj) => {
-        if ((obj as Mesh).isMesh) {
-            const mesh = obj as Mesh;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-        }
-    });
 
     const box = new Box3().setFromObject(model);
     const size = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
 
     const maxAxis = Math.max(size.x, size.y, size.z);
-    const scale = desiredSize / maxAxis;
-    model.scale.setScalar(scale);
+
+    if (maxAxis > maxAllowedSize) {
+        const scale = maxAllowedSize / maxAxis;
+        model.scale.setScalar(scale);
+    }
 
     box.setFromObject(model);
     const newCenter = box.getCenter(new Vector3());

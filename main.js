@@ -1,35 +1,77 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __generator = (this && this.__generator) || function (thisArg, body) {
+    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
+    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
+    function verb(n) { return function (v) { return step([n, v]); }; }
+    function step(op) {
+        if (f) throw new TypeError("Generator is already executing.");
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
+            switch (op[0]) {
+                case 0: case 1: t = op; break;
+                case 4: _.label++; return { value: op[1], done: false };
+                case 5: _.label++; y = op[1]; op = [0]; continue;
+                case 7: op = _.ops.pop(); _.trys.pop(); continue;
+                default:
+                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
+                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
+                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
+                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
+                    if (t[2]) _.ops.pop();
+                    _.trys.pop(); continue;
+            }
+            op = body.call(thisArg, _);
+        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
+        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
+    }
+};
 // ⚠️ DO NOT EDIT main.js DIRECTLY ⚠️
 // This file is generated from the TypeScript source main.ts
 // Any changes made here will be overwritten.
 // Import only what you need, to help your bundler optimize final code size using tree shaking
 // see https://developer.mozilla.org/en-US/docs/Glossary/Tree_shaking)
-import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, SphereGeometry, PointLight, Color, CylinderGeometry, ConeGeometry, Raycaster, Vector2 } from 'three';
+import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, Color, Raycaster, Vector2, Timer, Box3, Vector3, MeshBasicMaterial, HemisphereLight, DirectionalLight } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
 import { Font } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-// Example of hard link to official repo for data, if needed
-// const MODEL_PATH = 'https://raw.githubusercontent.com/mrdoob/three.js/r173/examples/models/gltf/LeePerrySmith/LeePerrySmith.glb';
 // INSERT CODE HERE
+// Init
 var scene = new Scene();
 scene.background = new Color(0xffffff);
 var aspect = window.innerWidth / window.innerHeight;
 var camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
-// camera.up.set(0, 0, 0);
-// camera.lookAt(0, 0, 0);
-camera.position.set(0, 0, 55);
-// camera.up.set(0, 0, 0);
-// camera.lookAt(0, 0, 0);
-var light = new AmbientLight(0xffffff, 1.0); // soft white light
+var light = new AmbientLight(0xffffff, 1); // soft white light
+var dirLight = new DirectionalLight(0xffffff, 3);
+dirLight.position.set(10, 20, 10);
+scene.add(dirLight);
+var hemiLight = new HemisphereLight(0xffffff, 0x444444, 2);
+scene.add(hemiLight);
+var renderer = new WebGLRenderer();
 scene.add(light);
 var buttonSize = 10;
 var font;
-var currentShape;
-var currentForm;
 var loader = new TTFLoader();
+var currentPokemon = null;
+var currentPokemonName = "";
+var originalMaterials = new Map();
+var raycaster = new Raycaster();
+var INTERSECTED;
+var pointer = new Vector2(0, 0);
+var lstPokemon = [];
+var clock = new Clock();
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
         console.log("Font loaded");
@@ -37,11 +79,86 @@ function fontLoad() {
         addTextToButtons();
     });
 }
-var renderer = new WebGLRenderer();
+function listPokemonLoad() {
+    return __awaiter(this, void 0, void 0, function () {
+        var response, text, list;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0: return [4 /*yield*/, fetch("/assets/lst_pokemon.txt")];
+                case 1:
+                    response = _a.sent();
+                    return [4 /*yield*/, response.text()];
+                case 2:
+                    text = _a.sent();
+                    list = text
+                        .split("\n")
+                        .map(function (line) { return line.trim(); })
+                        .filter(function (line) { return line.length > 0; });
+                    return [2 /*return*/, list];
+            }
+        });
+    });
+}
+listPokemonLoad().then(function (list) {
+    console.log(list);
+    lstPokemon = list;
+});
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 var controls = new OrbitControls(camera, renderer.domElement);
 controls.listenToKeyEvents(window); // optional
+function randomPokemon() {
+    if (lstPokemon.length === 0)
+        return "";
+    var randomIndex = Math.floor(Math.random() * lstPokemon.length);
+    return lstPokemon[randomIndex];
+}
+function gltfReader(gltf) {
+    var model = convertGLTFModel(gltf, 25);
+    model.traverse(function (obj) {
+        if (obj.isMesh) {
+            var mesh = obj;
+            originalMaterials.set(mesh, mesh.material);
+            mesh.material = new MeshBasicMaterial({
+                color: 0x000000
+            });
+            // mesh.material = originalMaterials.get(mesh)!;
+        }
+    });
+    currentPokemon = model;
+    scene.add(currentPokemon);
+    console.log("Model loaded:  " + currentPokemonName);
+}
+function loadData() {
+    var idPokemon = randomPokemon();
+    if (!idPokemon)
+        return;
+    currentPokemonName = idPokemon;
+    new GLTFLoader()
+        .setPath('/assets/Pokemon_models/' + idPokemon)
+        .setResourcePath('/assets/Pokemon_models/' + idPokemon + '/images/')
+        .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
+}
+listPokemonLoad().then(function (list) {
+    lstPokemon = list;
+    loadData();
+});
+// Button to guess the right form #TODO: remplacer par les pokemons
+function createButton(label, position) {
+    var cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
+    var material = new MeshPhongMaterial({ color: 0x808080 });
+    var button = new Mesh(cube, material);
+    button.name = label; // Set the name to identify the button
+    button.position.set(position.x, position.y, position.z);
+    return button;
+}
+// Buttons 
+var button1 = createButton("Button1", { x: -30, y: -10, z: 20 });
+var button2 = createButton("Button2", { x: -10, y: -10, z: 20 });
+var button3 = createButton("Button3", { x: 10, y: -10, z: 20 });
+var button4 = createButton("Button4", { x: 30, y: -10, z: 20 });
+var buttons = [button1, button2, button3, button4];
+buttons.forEach(function (button) { return scene.add(button); });
 function createTextMesh(label, id) {
     var textGeo = new TextGeometry(label, {
         font: font,
@@ -60,111 +177,50 @@ function createTextMesh(label, id) {
     var textMaterial = new MeshPhongMaterial({ color: 0xffffff });
     var textMesh = new Mesh(textGeo, textMaterial);
     textMesh.name = "text" + id; // Set the name to identify the text mesh
-    // textMesh.rotation.x = Math.PI / 2;
-    // textMesh.rotation.y = Math.PI;
     textMesh.position.x = centerOffset; // adjust horizontally
     textMesh.position.y = 0; // in front of the button
     textMesh.position.z = 4.3; // vertically
     return textMesh;
 }
 function addTextToButtons() {
-    var labels = ["Cube", "Sphere", "Pyramid", "Cylinder"];
+    var randomPokemonNames = [currentPokemonName];
+    while (randomPokemonNames.length < buttons.length) {
+        var randomIndex = Math.floor(Math.random() * lstPokemon.length);
+        var pokemonName = lstPokemon[randomIndex];
+        if (!randomPokemonNames.includes(pokemonName) && pokemonName !== currentPokemonName) {
+            randomPokemonNames.push(pokemonName);
+        }
+    }
+    shuffle(randomPokemonNames);
     buttons.forEach(function (button, index) {
-        var textMesh = createTextMesh(labels[index], index);
+        button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
+        var textMesh = createTextMesh(randomPokemonNames[index], index);
+        button.remove.apply(button, button.children); // Remove existing text if any
         // Attacher le texte au bouton
         button.add(textMesh);
     });
 }
-function randomPokemonIndex(range) {
-    if (range === void 0) { range = 151; }
-    var randomIndex = Math.floor(Math.random() * range) + 1; // +1 to get a number between 1 and range
-    var formattedNumber = String(randomIndex).padStart(3, '0');
-    return formattedNumber;
-}
-function randomChoice() {
-    var rdm = Number(randomPokemonIndex(4));
-    var formtype = ["", "Cube", "Sphere", "Pyramid", "Cylinder"][rdm]; // Pour avoir une forme aleatoire parmi les 4 #TODO renplacer par les pokemons 
-    return formtype;
-}
-function gltfReader(gltf) {
-    var testModel = null;
-    testModel = gltf.scene;
-    if (testModel != null) {
-        console.log("Model loaded:  " + testModel);
-        gltf.scene.position.set(0, -10, -50);
-        scene.add(gltf.scene);
+function shuffle(array) {
+    var _a;
+    for (var i = array.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        _a = [array[j], array[i]], array[i] = _a[0], array[j] = _a[1];
     }
-    else {
-        console.log("Load FAILED.  ");
-    }
+    return array;
 }
-function loadForm() {
-    var formtype = randomChoice(); // TODO: remplacer par les modeles de pokemons
-    var geometry;
-    switch (formtype) {
-        case "Cube":
-            geometry = new BoxGeometry(10, 10, 10);
-            break;
-        case "Sphere":
-            geometry = new SphereGeometry(5, 20, 20);
-            break;
-        case "Pyramid":
-            geometry = new ConeGeometry(5, 10, 4);
-            break;
-        case "Cylinder":
-            geometry = new CylinderGeometry(5, 5, 10, 20);
-            break;
-    }
-    var materialForm = new MeshPhongMaterial({ color: 0x444444 });
-    var form = new Mesh(geometry, materialForm);
-    form.position.set(0, 0, 0);
-    form.name = formtype; // Set the name to identify the form
-    return form;
-}
-function loadData() {
-    var idPokemon = "001"; // randomPokemonIndex(); // TODO: remplacer par les pokemons
-    new GLTFLoader()
-        .setPath('/assets/models/001/')
-        .load('Bulbasaur.glb', gltfReader);
-}
-loadData();
-// Button to guess the right form #TODO: remplacer par les pokemons
-function createButton(label, position) {
-    var cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
-    var material = new MeshPhongMaterial({ color: 0x808080 });
-    var button = new Mesh(cube, material);
-    button.name = label; // Set the name to identify the button
-    button.position.set(position.x, position.y, position.z);
-    return button;
-}
-// Buttons 
-var button1 = createButton("Cube", { x: -30, y: -10, z: 20 });
-var button2 = createButton("Sphere", { x: -10, y: -10, z: 20 });
-var button3 = createButton("Pyramid", { x: 10, y: -10, z: 20 });
-var button4 = createButton("Cylinder", { x: 30, y: -10, z: 20 });
-var buttons = [button1, button2, button3, button4];
-buttons.forEach(function (button) { return scene.add(button); });
 fontLoad();
-{ // add lightpoint
-    var color = 0xffffff;
-    var intensity = 500;
-    var light_1 = new PointLight(color, intensity);
-    scene.add(light_1);
-}
-//init
-//init
-var clock = new Clock();
-currentShape = loadForm();
-var raycaster = new Raycaster();
-var INTERSECTED;
-var pointer = new Vector2(0, 0);
 // console.log(scene.children); //debug to see the objects in the scene
+var timer = new Timer();
+timer.connect(document);
 // Main loop / render function
 var animation = function () {
     renderer.setAnimationLoop(animation); // requestAnimationFrame() replacement, compatible with XR 
-    scene.add(currentShape);
-    var delta = clock.getDelta();
-    var elapsed = clock.getElapsedTime();
+    timer.update();
+    //const delta = timer.getDelta();
+    var elapsed = timer.getElapsed();
+    if (currentPokemon) {
+        currentPokemon.rotation.y = elapsed * 0.5;
+    }
     // intersection detection
     raycaster.setFromCamera(pointer, camera);
     var intersects = raycaster.intersectObjects(buttons, false);
@@ -184,10 +240,6 @@ var animation = function () {
     }
     renderer.render(scene, camera);
 };
-// can be used in shaders: uniforms.u_time.value = elapsed;
-// can be used in shaders: uniforms.u_time.value = elapsed;
-renderer.render(scene, camera);
-renderer.render(scene, camera);
 animation();
 window.addEventListener('resize', onWindowResize, false);
 // Resize responsive
@@ -210,20 +262,34 @@ function try_onClick(event) {
     var intersects = raycaster.intersectObjects(buttons, false);
     if (intersects.length > 0) {
         var clickedButton = intersects[0].object;
-        // console.log("Clicked on button: " + clickedButton.name);
-        // console.log("Current shape: " + currentShape.name);
-        console.log(currentShape.name === clickedButton.name); // Check if the names match
-        // Here you can add logic to check if the clicked button corresponds to the current shape
+        console.log(currentPokemonName === clickedButton.name); // Check if the names match
         changeShape();
+        addTextToButtons();
     }
 }
 function changeShape() {
-    scene.remove(currentShape);
-    currentShape.geometry.dispose();
-    currentShape.material.dispose();
-    currentShape = loadForm();
-    scene.add(currentShape);
-    // console.log(scene.children);
+    if (!currentPokemon)
+        return;
+    scene.remove(currentPokemon);
+    loadData();
+}
+function convertGLTFModel(gltf, maxAllowedSize) {
+    if (maxAllowedSize === void 0) { maxAllowedSize = 40; }
+    var model = gltf.scene;
+    var box = new Box3().setFromObject(model);
+    var size = box.getSize(new Vector3());
+    var center = box.getCenter(new Vector3());
+    var maxAxis = Math.max(size.x, size.y, size.z);
+    if (maxAxis > maxAllowedSize) {
+        var scale = maxAllowedSize / maxAxis;
+        model.scale.setScalar(scale);
+    }
+    box.setFromObject(model);
+    var newCenter = box.getCenter(new Vector3());
+    model.position.sub(newCenter);
+    box.setFromObject(model);
+    model.position.y -= box.min.y;
+    return model;
 }
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);
