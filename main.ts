@@ -62,6 +62,9 @@ scene.background = new Color(0xffffff);
 const aspect = window.innerWidth / window.innerHeight;
 const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
+camera.layers.enable(0);
+camera.layers.enable(1);
+
 const light = new AmbientLight(0xffffff, 1); // soft white light
 const dirLight = new DirectionalLight(0xffffff, 3);
 dirLight.position.set(10, 20, 10);
@@ -70,11 +73,15 @@ const hemiLight = new HemisphereLight(0xffffff, 0x444444, 2);
 scene.add(hemiLight);
 const renderer = new WebGLRenderer();
 scene.add(light);
+const originalAmbientColor = light.color.clone();
+const originalDirColor = dirLight.color.clone();
+const originalHemiSkyColor = hemiLight.color.clone();
+const originalHemiGroundColor = hemiLight.groundColor.clone();
 
 const buttonSize = 10;
 let font: Font;
-
 const loader = new TTFLoader();
+
 let currentPokemon: Object3D | null = null;
 let currentPokemonName: string = "";
 const originalMaterials = new Map<Mesh, Material | Material[]>();
@@ -86,6 +93,7 @@ let lstPokemon: string[] = [];
 const clock = new Clock();
 let score = 0;
 
+let cdtBlock = false;
 
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
@@ -128,6 +136,7 @@ function randomPokemon(): string {
 function gltfReader(gltf: GLTF) {
     const model = convertGLTFModel(gltf, 25);
     model.traverse((obj) => {
+        obj.layers.set(1); // layer 1 pour les Pokémon
         if ((obj as Mesh).isMesh) {
             const mesh = obj as Mesh;
             originalMaterials.set(mesh, mesh.material);
@@ -308,16 +317,16 @@ function try_onClick(event: MouseEvent) {
     raycaster.setFromCamera(pointer, camera);
 
     const intersects = raycaster.intersectObjects(buttons, false);
+    if (cdtBlock) return
 
     if (intersects.length > 0) {
+        cdtBlock = true;
         const clickedButton = intersects[0].object;
         revealPokemon();
         if (currentPokemonName === clickedButton.name) {
-            correctAnswer()
+            correctAnswer();
         }
         else wrongAnswer();
-        changeShape();
-        addTextToButtons();
     }
 }
 
@@ -370,11 +379,35 @@ function revealPokemon() {
 
 function correctAnswer() {
     score += 1;
+    flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
 }
 
 function wrongAnswer() {
+    flashLights(0xff0000);
     //Allume les lumières en rouge pendant 5 secondes
+}
+
+function flashLights(color: number) {
+
+    light.color.set(color);
+    dirLight.color.set(color);
+    hemiLight.color.set(color);
+
+    setTimeout(() => {
+        light.color.copy(originalAmbientColor);
+        dirLight.color.copy(originalDirColor);
+        hemiLight.color.copy(originalHemiSkyColor);
+        hemiLight.groundColor.copy(originalHemiGroundColor);
+        cdtBlock = false;
+        nextPokemon();
+    }, 5000);
+
+}
+
+function nextPokemon() {
+    changeShape();
+    addTextToButtons();
 }
 
 document.addEventListener('click', try_onClick);

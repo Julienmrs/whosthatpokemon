@@ -61,6 +61,10 @@ var hemiLight = new HemisphereLight(0xffffff, 0x444444, 2);
 scene.add(hemiLight);
 var renderer = new WebGLRenderer();
 scene.add(light);
+var originalAmbientColor = light.color.clone();
+var originalDirColor = dirLight.color.clone();
+var originalHemiSkyColor = hemiLight.color.clone();
+var originalHemiGroundColor = hemiLight.groundColor.clone();
 var buttonSize = 10;
 var font;
 var loader = new TTFLoader();
@@ -73,6 +77,7 @@ var pointer = new Vector2(0, 0);
 var lstPokemon = [];
 var clock = new Clock();
 var score = 0;
+var cdtBlock = false;
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
         console.log("Font loaded");
@@ -263,7 +268,10 @@ function onPointerMove(event) {
 function try_onClick(event) {
     raycaster.setFromCamera(pointer, camera);
     var intersects = raycaster.intersectObjects(buttons, false);
+    if (cdtBlock)
+        return;
     if (intersects.length > 0) {
+        cdtBlock = true;
         var clickedButton = intersects[0].object;
         revealPokemon();
         if (currentPokemonName === clickedButton.name) {
@@ -271,8 +279,6 @@ function try_onClick(event) {
         }
         else
             wrongAnswer();
-        changeShape();
-        addTextToButtons();
     }
 }
 function changeShape() {
@@ -316,10 +322,29 @@ function revealPokemon() {
 }
 function correctAnswer() {
     score += 1;
+    flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
 }
 function wrongAnswer() {
+    flashLights(0xff0000);
     //Allume les lumières en rouge pendant 5 secondes
+}
+function flashLights(color) {
+    light.color.set(color);
+    dirLight.color.set(color);
+    hemiLight.color.set(color);
+    setTimeout(function () {
+        light.color.copy(originalAmbientColor);
+        dirLight.color.copy(originalDirColor);
+        hemiLight.color.copy(originalHemiSkyColor);
+        hemiLight.groundColor.copy(originalHemiGroundColor);
+        cdtBlock = false;
+        nextPokemon();
+    }, 5000);
+}
+function nextPokemon() {
+    changeShape();
+    addTextToButtons();
 }
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);
