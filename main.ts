@@ -84,6 +84,7 @@ let INTERSECTED: any;
 let pointer = new Vector2(0, 0);
 let lstPokemon: string[] = [];
 const clock = new Clock();
+let score = 0;
 
 
 function fontLoad() {
@@ -310,7 +311,11 @@ function try_onClick(event: MouseEvent) {
 
     if (intersects.length > 0) {
         const clickedButton = intersects[0].object;
-        console.log(currentPokemonName === clickedButton.name); // Check if the names match
+        revealPokemon();
+        if (currentPokemonName === clickedButton.name) {
+            correctAnswer()
+        }
+        else wrongAnswer();
         changeShape();
         addTextToButtons();
     }
@@ -346,6 +351,30 @@ function convertGLTFModel(gltf: GLTF, maxAllowedSize = 40): Object3D {
     model.position.y -= box.min.y;
 
     return model;
+}
+
+function revealPokemon() {
+    if (!currentPokemon) return;
+    currentPokemon.traverse((obj) => {
+        if ((obj as Mesh).isMesh) {
+            const mesh = obj as Mesh;
+            if (originalMaterials.has(mesh)) {
+                const material = originalMaterials.get(mesh);
+                if (material) {
+                    mesh.material = material;
+                }
+            }
+        }
+    });
+}
+
+function correctAnswer() {
+    score += 1;
+    // Allume les lumières en vert pendant 5 secondes
+}
+
+function wrongAnswer() {
+    //Allume les lumières en rouge pendant 5 secondes
 }
 
 document.addEventListener('click', try_onClick);

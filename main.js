@@ -72,6 +72,7 @@ var INTERSECTED;
 var pointer = new Vector2(0, 0);
 var lstPokemon = [];
 var clock = new Clock();
+var score = 0;
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
         console.log("Font loaded");
@@ -125,6 +126,9 @@ function gltfReader(gltf) {
             // mesh.material = originalMaterials.get(mesh)!;
         }
     });
+    if (currentPokemon) {
+        scene.remove(currentPokemon);
+    }
     currentPokemon = model;
     scene.add(currentPokemon);
     console.log("Model loaded:  " + currentPokemonName);
@@ -209,7 +213,6 @@ function shuffle(array) {
     return array;
 }
 fontLoad();
-// console.log(scene.children); //debug to see the objects in the scene
 var timer = new Timer();
 timer.connect(document);
 // Main loop / render function
@@ -262,7 +265,12 @@ function try_onClick(event) {
     var intersects = raycaster.intersectObjects(buttons, false);
     if (intersects.length > 0) {
         var clickedButton = intersects[0].object;
-        console.log(currentPokemonName === clickedButton.name); // Check if the names match
+        revealPokemon();
+        if (currentPokemonName === clickedButton.name) {
+            correctAnswer();
+        }
+        else
+            wrongAnswer();
         changeShape();
         addTextToButtons();
     }
@@ -290,6 +298,28 @@ function convertGLTFModel(gltf, maxAllowedSize) {
     box.setFromObject(model);
     model.position.y -= box.min.y;
     return model;
+}
+function revealPokemon() {
+    if (!currentPokemon)
+        return;
+    currentPokemon.traverse(function (obj) {
+        if (obj.isMesh) {
+            var mesh = obj;
+            if (originalMaterials.has(mesh)) {
+                var material = originalMaterials.get(mesh);
+                if (material) {
+                    mesh.material = material;
+                }
+            }
+        }
+    });
+}
+function correctAnswer() {
+    score += 1;
+    // Allume les lumières en vert pendant 5 secondes
+}
+function wrongAnswer() {
+    //Allume les lumières en rouge pendant 5 secondes
 }
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);
