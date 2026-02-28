@@ -218,6 +218,7 @@ function addTextToButtons() {
             randomPokemonNames.push(pokemonName);
         }
     }
+    shuffle(randomPokemonNames);
     buttons.forEach((button, index) => {
         button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
         const textMesh = createTextMesh(randomPokemonNames[index], index);
@@ -226,6 +227,14 @@ function addTextToButtons() {
         button.add(textMesh);
 
     });
+}
+
+function shuffle(array: string[]) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
 }
 
 fontLoad();
