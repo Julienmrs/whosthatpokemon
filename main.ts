@@ -102,6 +102,10 @@ const clock = new Clock();
 let score = 0;
 let scoreMesh: Mesh | null = null;
 
+let gameDuration = 60; // secondes
+let gameStarted = true;
+let timerMesh: Mesh | null = null;
+
 let cdtBlock = false;
 
 const datatexture = new Uint8Array([
@@ -289,6 +293,13 @@ const animation = () => {
     timer.update();
     //const delta = timer.getDelta();
     const elapsed = timer.getElapsed();
+
+    if (gameStarted) {
+        const timeRemaining = gameDuration - elapsed;
+        if (timeRemaining > 0) updateTimerDisplay(timeRemaining);
+        else endGame();
+    }
+
     if (currentPokemon) {
         currentPokemon.rotation.y = elapsed * 0.7;
     }
@@ -346,7 +357,7 @@ function try_onClick(event: MouseEvent) {
     raycaster.setFromCamera(pointer, camera);
 
     const intersects = raycaster.intersectObjects(buttons, false);
-    if (cdtBlock) return
+    if (cdtBlock || !gameStarted) return
 
     if (intersects.length > 0) {
         cdtBlock = true;
@@ -446,7 +457,7 @@ function flashLights(color: number) {
         hemiLight.groundColor.copy(originalHemiGroundColor);
         cdtBlock = false;
         nextPokemon();
-    }, 5000);
+    }, 500);
 
 }
 
@@ -473,9 +484,42 @@ function updateScoreDisplay() {
     scene.add(scoreMesh);
 }
 
+function updateTimerDisplay(time: number) {
 
-// TODO Ajouter Chronometre Epreuve
-// TODO Ajouter Chronometre fin d'épreuve
+    if (!font) return;
+    if (timerMesh) scene.remove(timerMesh);
+
+    const textGeo = new TextGeometry("Temps: " + Math.ceil(time), {
+        font: font,
+        size: 1.5,
+        depth: 0.5,
+        bevelEnabled: false
+    });
+
+    const textMaterial = new MeshPhongMaterial({ color: 0x000000 });
+    timerMesh = new Mesh(textGeo, textMaterial);
+
+    timerMesh.position.set(10, 20, 20);
+    scene.add(timerMesh);
+}
+
+function endGame() {
+    gameStarted = false;
+    if (timerMesh) scene.remove(timerMesh);
+    const textGeo = new TextGeometry("GAME OVER - Score: " + score, {
+        font: font,
+        size: 2,
+        depth: 1,
+        bevelEnabled: false
+    });
+
+    const textMaterial = new MeshPhongMaterial({ color: 0xff0000 });
+    const endMesh = new Mesh(textGeo, textMaterial);
+
+    endMesh.position.set(-20, 0, 20);
+    scene.add(endMesh);
+}
+
 
 
 

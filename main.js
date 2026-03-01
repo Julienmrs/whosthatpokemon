@@ -88,6 +88,9 @@ var lstPokemon = [];
 var clock = new Clock();
 var score = 0;
 var scoreMesh = null;
+var gameDuration = 60; // secondes
+var gameStarted = true;
+var timerMesh = null;
 var cdtBlock = false;
 var datatexture = new Uint8Array([
     0, 0, 0, 255,
@@ -256,6 +259,13 @@ var animation = function () {
     timer.update();
     //const delta = timer.getDelta();
     var elapsed = timer.getElapsed();
+    if (gameStarted) {
+        var timeRemaining = gameDuration - elapsed;
+        if (timeRemaining > 0)
+            updateTimerDisplay(timeRemaining);
+        else
+            endGame();
+    }
     if (currentPokemon) {
         currentPokemon.rotation.y = elapsed * 0.7;
     }
@@ -298,7 +308,7 @@ function onPointerMove(event) {
 function try_onClick(event) {
     raycaster.setFromCamera(pointer, camera);
     var intersects = raycaster.intersectObjects(buttons, false);
-    if (cdtBlock)
+    if (cdtBlock || !gameStarted)
         return;
     if (intersects.length > 0) {
         cdtBlock = true;
@@ -388,7 +398,7 @@ function flashLights(color) {
         hemiLight.groundColor.copy(originalHemiGroundColor);
         cdtBlock = false;
         nextPokemon();
-    }, 5000);
+    }, 500);
 }
 function nextPokemon() {
     changeShape();
@@ -411,7 +421,37 @@ function updateScoreDisplay() {
     scoreMesh.rotateY(0.4);
     scene.add(scoreMesh);
 }
-// TODO Ajouter score visible qui évolue avec le temps
+function updateTimerDisplay(time) {
+    if (!font)
+        return;
+    if (timerMesh)
+        scene.remove(timerMesh);
+    var textGeo = new TextGeometry("Temps: " + Math.ceil(time), {
+        font: font,
+        size: 1.5,
+        depth: 0.5,
+        bevelEnabled: false
+    });
+    var textMaterial = new MeshPhongMaterial({ color: 0x000000 });
+    timerMesh = new Mesh(textGeo, textMaterial);
+    timerMesh.position.set(10, 20, 20);
+    scene.add(timerMesh);
+}
+function endGame() {
+    gameStarted = false;
+    if (timerMesh)
+        scene.remove(timerMesh);
+    var textGeo = new TextGeometry("GAME OVER - Score: " + score, {
+        font: font,
+        size: 2,
+        depth: 1,
+        bevelEnabled: false
+    });
+    var textMaterial = new MeshPhongMaterial({ color: 0xff0000 });
+    var endMesh = new Mesh(textGeo, textMaterial);
+    endMesh.position.set(-20, 0, 20);
+    scene.add(endMesh);
+}
 // TODO Ajouter Chronometre Epreuve
 // TODO Ajouter Chronometre fin d'épreuve
 document.addEventListener('click', try_onClick);
