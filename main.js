@@ -40,7 +40,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 // Any changes made here will be overwritten.
 // Import only what you need, to help your bundler optimize final code size using tree shaking
 // see https://developer.mozilla.org/en-US/docs/Glossary/Tree_shaking)
-import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, Clock, MeshPhongMaterial, Color, Raycaster, Vector2, Timer, Box3, Vector3, MeshBasicMaterial, HemisphereLight, DirectionalLight, MeshToonMaterial, NearestFilter, DataTexture, RGBAFormat, } from 'three';
+import { PerspectiveCamera, Scene, WebGLRenderer, BoxGeometry, Mesh, AmbientLight, MeshPhongMaterial, Color, Raycaster, Vector2, Timer, Box3, Vector3, MeshBasicMaterial, HemisphereLight, DirectionalLight, MeshToonMaterial, NearestFilter, DataTexture, RGBAFormat, } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { TTFLoader } from 'three/addons/loaders/TTFLoader.js';
@@ -54,7 +54,6 @@ var aspect = window.innerWidth / window.innerHeight;
 var camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
 camera.layers.enable(0);
-camera.layers.enable(1);
 var light = new AmbientLight(0xffffff, 1); // soft white light
 var dirLight = new DirectionalLight(0xffffff, 3);
 dirLight.position.set(10, 20, 10);
@@ -85,13 +84,17 @@ var raycaster = new Raycaster();
 var INTERSECTED;
 var pointer = new Vector2(0, 0);
 var lstPokemon = [];
-var clock = new Clock();
 var score = 0;
 var scoreMesh = null;
 var gameDuration = 60; // secondes
+var answerDuration = 500; //millisecondes
 var gameStarted = true;
+var infiniteMode = false;
+var gameState = "menu";
 var timerMesh = null;
+var endMesh = null;
 var cdtBlock = false;
+var lstPokemonFound = [];
 var datatexture = new Uint8Array([
     0, 0, 0, 255,
     128, 128, 128, 255,
@@ -104,12 +107,13 @@ toonGradient.minFilter = NearestFilter;
 toonGradient.magFilter = NearestFilter;
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
-        console.log("Font loaded");
+        // console.log("Font loaded");
         font = new Font(json);
-        addTextToButtons();
+        showMenu();
         updateScoreDisplay();
     });
 }
+fontLoad();
 function listPokemonLoad() {
     return __awaiter(this, void 0, void 0, function () {
         var response, text, list;
@@ -131,7 +135,7 @@ function listPokemonLoad() {
     });
 }
 listPokemonLoad().then(function (list) {
-    console.log(list);
+    // console.log(list);
     lstPokemon = list;
 });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -164,7 +168,7 @@ function gltfReader(gltf) {
     }
     currentPokemon = model;
     scene.add(currentPokemon);
-    console.log("Model loaded:  " + currentPokemonName);
+    // console.log("Model loaded:  " + currentPokemonName); // Triche
 }
 function loadData() {
     var idPokemon = randomPokemon();
@@ -222,7 +226,9 @@ function createTextMesh(label, id) {
     return textMesh;
 }
 function addTextToButtons() {
-    console.log(currentPokemonName);
+    if (gameState != "playing")
+        return;
+    // console.log(currentPokemonName)
     var randomPokemonNames = [currentPokemonName];
     console.log(randomPokemonNames);
     while (randomPokemonNames.length < buttons.length) {
@@ -233,7 +239,7 @@ function addTextToButtons() {
         }
     }
     shuffle(randomPokemonNames);
-    console.log(randomPokemonNames);
+    // console.log(randomPokemonNames)
     buttons.forEach(function (button, index) {
         button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
         var textMesh = createTextMesh(randomPokemonNames[index], index);
@@ -250,7 +256,6 @@ function shuffle(array) {
     }
     return array;
 }
-fontLoad();
 var timer = new Timer();
 timer.connect(document);
 // Main loop / render function
@@ -259,7 +264,7 @@ var animation = function () {
     timer.update();
     //const delta = timer.getDelta();
     var elapsed = timer.getElapsed();
-    if (gameStarted) {
+    if (gameStarted && !infiniteMode) {
         var timeRemaining = gameDuration - elapsed;
         if (timeRemaining > 0)
             updateTimerDisplay(timeRemaining);
@@ -308,6 +313,25 @@ function onPointerMove(event) {
 function try_onClick(event) {
     raycaster.setFromCamera(pointer, camera);
     var intersects = raycaster.intersectObjects(buttons, false);
+    if (gameState === "menu") {
+        if (intersects.length === 0)
+            return;
+        var clickedButton = intersects[0].object;
+        if (clickedButton.name === "Jeu normal") {
+            answerDuration = 1000;
+            infiniteMode = false;
+            startGame();
+        }
+        else if (clickedButton.name === "Jeu infini") {
+            answerDuration = 2500;
+            infiniteMode = true;
+            startGame();
+        }
+        else {
+            console.log("Mode pas encore implémenté");
+        }
+        return;
+    }
     if (cdtBlock || !gameStarted)
         return;
     if (intersects.length > 0) {
@@ -398,7 +422,7 @@ function flashLights(color) {
         hemiLight.groundColor.copy(originalHemiGroundColor);
         cdtBlock = false;
         nextPokemon();
-    }, 500);
+    }, answerDuration);
 }
 function nextPokemon() {
     changeShape();
@@ -417,11 +441,15 @@ function updateScoreDisplay() {
     });
     var textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
     scoreMesh = new Mesh(textGeo, textMaterial);
+    scoreMesh.layers.set(1);
     scoreMesh.position.set(-30, 10, 20);
+    scoreMesh.name = "Score";
     scoreMesh.rotateY(0.4);
     scene.add(scoreMesh);
 }
 function updateTimerDisplay(time) {
+    if (gameState !== "playing")
+        return;
     if (!font)
         return;
     if (timerMesh)
@@ -448,12 +476,49 @@ function endGame() {
         bevelEnabled: false
     });
     var textMaterial = new MeshPhongMaterial({ color: 0xff0000 });
-    var endMesh = new Mesh(textGeo, textMaterial);
-    endMesh.position.set(-20, 0, 20);
+    endMesh = new Mesh(textGeo, textMaterial);
+    endMesh.position.set(-17.5, 0, 20);
     scene.add(endMesh);
+    gameState = "gameover";
+    setTimeout(function () {
+        camera.layers.disable(1);
+        showMenu();
+    }, 3000);
 }
-// TODO Ajouter Chronometre Epreuve
-// TODO Ajouter Chronometre fin d'épreuve
+function showMenu() {
+    gameState = "menu";
+    var menuOptions = [
+        "Jeu normal",
+        "Jeu infini",
+        "Nouveaux",
+        "Anciens"
+    ];
+    buttons.forEach(function (button, index) {
+        button.name = menuOptions[index];
+        var textMesh = createTextMesh(menuOptions[index], index);
+        button.remove.apply(button, button.children);
+        button.add(textMesh);
+    });
+}
+function startGame() {
+    if (endMesh)
+        scene.remove(endMesh);
+    if (infiniteMode && timerMesh)
+        scene.remove(timerMesh);
+    else if (!infiniteMode && timerMesh)
+        timer = new Timer();
+    gameState = "playing";
+    gameStarted = true;
+    score = 0;
+    updateScoreDisplay();
+    loadData();
+    camera.layers.enable(1);
+    timer.reset();
+    addTextToButtons();
+}
+// TODO demain faire les modes Tous pokemon et uniquement nouveaux
+// Gérer liste si correcte et pas déjà eu bon alors ajouté à lstPokemonbon
+// if NouveauxPokemon ajouter test dans le pokemon trié
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);
 //# sourceMappingURL=main.js.map

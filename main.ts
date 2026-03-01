@@ -15,13 +15,8 @@ import {
     Mesh,
     MeshNormalMaterial,
     AmbientLight,
-    Clock,
     MeshPhongMaterial,
-    SphereGeometry,
-    PointLight,
     Color,
-    CylinderGeometry,
-    ConeGeometry,
     Material,
     Raycaster,
     Vector2,
@@ -62,7 +57,6 @@ const aspect = window.innerWidth / window.innerHeight;
 const camera = new PerspectiveCamera(75, aspect, 0.1, 1000);
 camera.position.set(0, 0, 55);
 camera.layers.enable(0);
-camera.layers.enable(1);
 
 const light = new AmbientLight(0xffffff, 1); // soft white light
 const dirLight = new DirectionalLight(0xffffff, 3);
@@ -97,16 +91,20 @@ let raycaster = new Raycaster();
 let INTERSECTED: any;
 let pointer = new Vector2(0, 0);
 let lstPokemon: string[] = [];
-const clock = new Clock();
 
 let score = 0;
 let scoreMesh: Mesh | null = null;
-
 let gameDuration = 60; // secondes
+let answerDuration = 500; //millisecondes
 let gameStarted = true;
+type GameState = "menu" | "playing" | "gameover";
+let infiniteMode = false;
+let gameState: GameState = "menu";
 let timerMesh: Mesh | null = null;
-
+let endMesh: Mesh | null = null;
 let cdtBlock = false;
+
+let lstPokemonFound: string[] = []
 
 const datatexture = new Uint8Array([
     0, 0, 0, 255,
@@ -122,12 +120,13 @@ toonGradient.magFilter = NearestFilter;
 
 function fontLoad() {
     loader.load('assets/fonts/kenpixel.ttf', function (json) {
-        console.log("Font loaded");
+        // console.log("Font loaded");
         font = new Font(json);
-        addTextToButtons();
+        showMenu();
         updateScoreDisplay();
     });
 }
+fontLoad();
 
 async function listPokemonLoad(): Promise<string[]> {
     const response = await fetch("/assets/lst_pokemon.txt");
@@ -142,7 +141,7 @@ async function listPokemonLoad(): Promise<string[]> {
 }
 
 listPokemonLoad().then(list => {
-    console.log(list);
+    // console.log(list);
     lstPokemon = list;
 });
 
@@ -177,7 +176,7 @@ function gltfReader(gltf: GLTF) {
     if (currentPokemon) { scene.remove(currentPokemon) }
     currentPokemon = model;
     scene.add(currentPokemon);
-    console.log("Model loaded:  " + currentPokemonName);
+    // console.log("Model loaded:  " + currentPokemonName); // Triche
 }
 
 function loadData() {
@@ -249,8 +248,9 @@ function createTextMesh(label: string, id: number): Mesh {
 }
 
 function addTextToButtons() {
+    if (gameState != "playing") return;
 
-    console.log(currentPokemonName)
+    // console.log(currentPokemonName)
     const randomPokemonNames = [currentPokemonName];
     console.log(randomPokemonNames)
     while (randomPokemonNames.length < buttons.length) {
@@ -261,7 +261,7 @@ function addTextToButtons() {
         }
     }
     shuffle(randomPokemonNames);
-    console.log(randomPokemonNames)
+    // console.log(randomPokemonNames)
     buttons.forEach((button, index) => {
         button.name = randomPokemonNames[index]; // Set the button name to the Pokemon name for identification
         const textMesh = createTextMesh(randomPokemonNames[index], index);
@@ -280,10 +280,9 @@ function shuffle(array: string[]) {
     return array;
 }
 
-fontLoad();
 
 
-const timer = new Timer();
+let timer = new Timer();
 timer.connect(document);
 // Main loop / render function
 const animation = () => {
@@ -294,7 +293,7 @@ const animation = () => {
     //const delta = timer.getDelta();
     const elapsed = timer.getElapsed();
 
-    if (gameStarted) {
+    if (gameStarted && !infiniteMode) {
         const timeRemaining = gameDuration - elapsed;
         if (timeRemaining > 0) updateTimerDisplay(timeRemaining);
         else endGame();
@@ -357,6 +356,25 @@ function try_onClick(event: MouseEvent) {
     raycaster.setFromCamera(pointer, camera);
 
     const intersects = raycaster.intersectObjects(buttons, false);
+    if (gameState === "menu") {
+        if (intersects.length === 0) return;
+        const clickedButton = intersects[0].object;
+        if (clickedButton.name === "Jeu normal") {
+            answerDuration = 1000;
+            infiniteMode = false;
+            startGame();
+        }
+        else if (clickedButton.name === "Jeu infini") {
+            answerDuration = 2500;
+            infiniteMode = true;
+            startGame();
+
+        }
+        else {
+            console.log("Mode pas encore implémenté");
+        }
+        return;
+    }
     if (cdtBlock || !gameStarted) return
 
     if (intersects.length > 0) {
@@ -457,7 +475,7 @@ function flashLights(color: number) {
         hemiLight.groundColor.copy(originalHemiGroundColor);
         cdtBlock = false;
         nextPokemon();
-    }, 500);
+    }, answerDuration);
 
 }
 
@@ -478,14 +496,15 @@ function updateScoreDisplay() {
 
     const textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
     scoreMesh = new Mesh(textGeo, textMaterial);
-
+    scoreMesh.layers.set(1)
     scoreMesh.position.set(-30, 10, 20);
+    scoreMesh.name = "Score"
     scoreMesh.rotateY(0.4)
     scene.add(scoreMesh);
 }
 
 function updateTimerDisplay(time: number) {
-
+    if (gameState !== "playing") return;
     if (!font) return;
     if (timerMesh) scene.remove(timerMesh);
 
@@ -514,13 +533,52 @@ function endGame() {
     });
 
     const textMaterial = new MeshPhongMaterial({ color: 0xff0000 });
-    const endMesh = new Mesh(textGeo, textMaterial);
+    endMesh = new Mesh(textGeo, textMaterial);
 
-    endMesh.position.set(-20, 0, 20);
+    endMesh.position.set(-17.5, 0, 20);
     scene.add(endMesh);
+    gameState = "gameover";
+    setTimeout(() => {
+        camera.layers.disable(1);
+
+        showMenu();
+    }, 3000);
 }
 
+function showMenu() {
+    gameState = "menu";
+    const menuOptions = [
+        "Jeu normal",
+        "Jeu infini",
+        "Nouveaux",
+        "Anciens"
+    ];
+    buttons.forEach((button, index) => {
+        button.name = menuOptions[index];
+        const textMesh = createTextMesh(menuOptions[index], index);
+        button.remove(...button.children);
+        button.add(textMesh);
+    });
+}
 
+function startGame() {
+    if (endMesh) scene.remove(endMesh);
+    if (infiniteMode && timerMesh) scene.remove(timerMesh);
+    else if (!infiniteMode && timerMesh) timer = new Timer();
+
+    gameState = "playing";
+    gameStarted = true;
+    score = 0;
+    updateScoreDisplay();
+    loadData();
+    camera.layers.enable(1);
+    timer.reset();
+    addTextToButtons();
+}
+
+// TODO demain faire les modes Tous pokemon et uniquement nouveaux
+// Gérer liste si correcte et pas déjà eu bon alors ajouté à lstPokemonbon
+// if NouveauxPokemon ajouter test dans le pokemon trié
 
 
 document.addEventListener('click', try_onClick);
