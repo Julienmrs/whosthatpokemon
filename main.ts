@@ -104,6 +104,7 @@ let timerMesh: Mesh | null = null;
 let endMesh: Mesh | null = null;
 let cdtBlock = false;
 
+let currentFilter: "all" | "new" | "old" = "all";
 let lstPokemonFound: string[] = []
 
 const datatexture = new Uint8Array([
@@ -153,9 +154,14 @@ const controls = new OrbitControls(camera, renderer.domElement);
 controls.listenToKeyEvents(window); // optional
 
 function randomPokemon(): string {
-    if (lstPokemon.length === 0) return "";
-    const randomIndex = Math.floor(Math.random() * lstPokemon.length);
-    return lstPokemon[randomIndex];
+    const lstAvailable = availablePokemon();
+    if (lstAvailable.length === 0) {
+        alert("Tous les Pokémon ont été trouvés !");
+        showMenu();
+        return "";
+    }
+    const randomIndex = Math.floor(Math.random() * lstAvailable.length);
+    return lstAvailable[randomIndex];
 }
 
 function gltfReader(gltf: GLTF) {
@@ -189,10 +195,7 @@ function loadData() {
         .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
 }
 
-listPokemonLoad().then(list => {
-    lstPokemon = list;
-    loadData();
-});
+
 
 
 
@@ -360,11 +363,25 @@ function try_onClick(event: MouseEvent) {
         if (intersects.length === 0) return;
         const clickedButton = intersects[0].object;
         if (clickedButton.name === "Jeu normal") {
+            currentFilter = "all";
+            answerDuration = 1000;
+            infiniteMode = false;
+            startGame();
+        }
+        if (clickedButton.name === "Nouveaux") {
+            currentFilter = "new";
+            answerDuration = 1000;
+            infiniteMode = false;
+            startGame();
+        }
+        if (clickedButton.name === "Anciens") {
+            currentFilter = "old";
             answerDuration = 1000;
             infiniteMode = false;
             startGame();
         }
         else if (clickedButton.name === "Jeu infini") {
+            currentFilter = "all";
             answerDuration = 2500;
             infiniteMode = true;
             startGame();
@@ -452,6 +469,9 @@ function revealPokemon() {
 
 function correctAnswer() {
     score += 1;
+    if (!lstPokemonFound.includes(currentPokemonName)) {
+        lstPokemonFound.push(currentPokemonName);
+    }
     updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
@@ -539,19 +559,18 @@ function endGame() {
     scene.add(endMesh);
     gameState = "gameover";
     setTimeout(() => {
-        camera.layers.disable(1);
-
         showMenu();
     }, 3000);
 }
 
 function showMenu() {
     gameState = "menu";
+    camera.layers.disable(1);
     const menuOptions = [
         "Jeu normal",
-        "Jeu infini",
         "Nouveaux",
-        "Anciens"
+        "Anciens",
+        "Jeu infini",
     ];
     buttons.forEach((button, index) => {
         button.name = menuOptions[index];
@@ -575,6 +594,24 @@ function startGame() {
     timer.reset();
     addTextToButtons();
 }
+
+function availablePokemon(): string[] {
+
+    if (currentFilter === "new") {
+        return lstPokemon.filter(name =>
+            !lstPokemonFound.includes(name)
+        );
+    }
+
+    if (currentFilter === "old") {
+        return lstPokemon.filter(name =>
+            lstPokemonFound.includes(name)
+        );
+    }
+
+    return lstPokemon;
+}
+
 
 // TODO demain faire les modes Tous pokemon et uniquement nouveaux
 // Gérer liste si correcte et pas déjà eu bon alors ajouté à lstPokemonbon

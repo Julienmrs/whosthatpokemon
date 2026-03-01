@@ -94,6 +94,7 @@ var gameState = "menu";
 var timerMesh = null;
 var endMesh = null;
 var cdtBlock = false;
+var currentFilter = "all";
 var lstPokemonFound = [];
 var datatexture = new Uint8Array([
     0, 0, 0, 255,
@@ -143,10 +144,14 @@ document.body.appendChild(renderer.domElement);
 var controls = new OrbitControls(camera, renderer.domElement);
 controls.listenToKeyEvents(window); // optional
 function randomPokemon() {
-    if (lstPokemon.length === 0)
+    var lstAvailable = availablePokemon();
+    if (lstAvailable.length === 0) {
+        alert("Tous les Pokémon ont été trouvés !");
+        showMenu();
         return "";
-    var randomIndex = Math.floor(Math.random() * lstPokemon.length);
-    return lstPokemon[randomIndex];
+    }
+    var randomIndex = Math.floor(Math.random() * lstAvailable.length);
+    return lstAvailable[randomIndex];
 }
 function gltfReader(gltf) {
     var model = convertGLTFModel(gltf, 25);
@@ -180,10 +185,6 @@ function loadData() {
         .setResourcePath('/assets/Pokemon_models/' + idPokemon + '/images/')
         .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
 }
-listPokemonLoad().then(function (list) {
-    lstPokemon = list;
-    loadData();
-});
 // Button to guess the right form #TODO: remplacer par les pokemons
 function createButton(label, position) {
     var cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
@@ -318,11 +319,25 @@ function try_onClick(event) {
             return;
         var clickedButton = intersects[0].object;
         if (clickedButton.name === "Jeu normal") {
+            currentFilter = "all";
+            answerDuration = 1000;
+            infiniteMode = false;
+            startGame();
+        }
+        if (clickedButton.name === "Nouveaux") {
+            currentFilter = "new";
+            answerDuration = 1000;
+            infiniteMode = false;
+            startGame();
+        }
+        if (clickedButton.name === "Anciens") {
+            currentFilter = "old";
             answerDuration = 1000;
             infiniteMode = false;
             startGame();
         }
         else if (clickedButton.name === "Jeu infini") {
+            currentFilter = "all";
             answerDuration = 2500;
             infiniteMode = true;
             startGame();
@@ -403,6 +418,9 @@ function revealPokemon() {
 }
 function correctAnswer() {
     score += 1;
+    if (!lstPokemonFound.includes(currentPokemonName)) {
+        lstPokemonFound.push(currentPokemonName);
+    }
     updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
@@ -481,17 +499,17 @@ function endGame() {
     scene.add(endMesh);
     gameState = "gameover";
     setTimeout(function () {
-        camera.layers.disable(1);
         showMenu();
     }, 3000);
 }
 function showMenu() {
     gameState = "menu";
+    camera.layers.disable(1);
     var menuOptions = [
         "Jeu normal",
-        "Jeu infini",
         "Nouveaux",
-        "Anciens"
+        "Anciens",
+        "Jeu infini",
     ];
     buttons.forEach(function (button, index) {
         button.name = menuOptions[index];
@@ -515,6 +533,19 @@ function startGame() {
     camera.layers.enable(1);
     timer.reset();
     addTextToButtons();
+}
+function availablePokemon() {
+    if (currentFilter === "new") {
+        return lstPokemon.filter(function (name) {
+            return !lstPokemonFound.includes(name);
+        });
+    }
+    if (currentFilter === "old") {
+        return lstPokemon.filter(function (name) {
+            return lstPokemonFound.includes(name);
+        });
+    }
+    return lstPokemon;
 }
 // TODO demain faire les modes Tous pokemon et uniquement nouveaux
 // Gérer liste si correcte et pas déjà eu bon alors ajouté à lstPokemonbon
