@@ -88,7 +88,6 @@ var score = 0;
 var scoreMesh = null;
 var gameDuration = 60; // secondes
 var answerDuration = 500; //millisecondes
-var gameStarted = true;
 var infiniteMode = false;
 var gameState = "menu";
 var timerMesh = null;
@@ -96,6 +95,9 @@ var endMesh = null;
 var cdtBlock = false;
 var currentFilter = "all";
 var lstPokemonFound = [];
+var saved = localStorage.getItem("pokemonFound");
+if (saved)
+    lstPokemonFound = JSON.parse(saved);
 var datatexture = new Uint8Array([
     0, 0, 0, 255,
     128, 128, 128, 255,
@@ -265,7 +267,7 @@ var animation = function () {
     timer.update();
     //const delta = timer.getDelta();
     var elapsed = timer.getElapsed();
-    if (gameStarted && !infiniteMode) {
+    if (gameState === "playing" && !infiniteMode) {
         var timeRemaining = gameDuration - elapsed;
         if (timeRemaining > 0)
             updateTimerDisplay(timeRemaining);
@@ -347,7 +349,7 @@ function try_onClick(event) {
         }
         return;
     }
-    if (cdtBlock || !gameStarted)
+    if (cdtBlock || gameState !== "playing")
         return;
     if (intersects.length > 0) {
         cdtBlock = true;
@@ -424,6 +426,7 @@ function correctAnswer() {
     updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
+    localStorage.setItem("pokemonFound", JSON.stringify(lstPokemonFound));
 }
 function wrongAnswer() {
     flashLights(0xff0000);
@@ -465,6 +468,25 @@ function updateScoreDisplay() {
     scoreMesh.rotateY(0.4);
     scene.add(scoreMesh);
 }
+function updateProgressDisplay() {
+    if (!font)
+        return;
+    if (scoreMesh)
+        scene.remove(scoreMesh);
+    var textGeo = new TextGeometry("Score: " + score, {
+        font: font,
+        size: 1.5,
+        depth: 0.5,
+        bevelEnabled: false
+    });
+    var textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
+    scoreMesh = new Mesh(textGeo, textMaterial);
+    scoreMesh.layers.set(1);
+    scoreMesh.position.set(-30, 10, 20);
+    scoreMesh.name = "Score";
+    scoreMesh.rotateY(0.4);
+    scene.add(scoreMesh);
+}
 function updateTimerDisplay(time) {
     if (gameState !== "playing")
         return;
@@ -484,7 +506,7 @@ function updateTimerDisplay(time) {
     scene.add(timerMesh);
 }
 function endGame() {
-    gameStarted = false;
+    gameState = "gameover";
     if (timerMesh)
         scene.remove(timerMesh);
     var textGeo = new TextGeometry("GAME OVER - Score: " + score, {
@@ -526,7 +548,6 @@ function startGame() {
     else if (!infiniteMode && timerMesh)
         timer = new Timer();
     gameState = "playing";
-    gameStarted = true;
     score = 0;
     updateScoreDisplay();
     loadData();

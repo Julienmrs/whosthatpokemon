@@ -96,7 +96,6 @@ let score = 0;
 let scoreMesh: Mesh | null = null;
 let gameDuration = 60; // secondes
 let answerDuration = 500; //millisecondes
-let gameStarted = true;
 type GameState = "menu" | "playing" | "gameover";
 let infiniteMode = false;
 let gameState: GameState = "menu";
@@ -106,6 +105,8 @@ let cdtBlock = false;
 
 let currentFilter: "all" | "new" | "old" = "all";
 let lstPokemonFound: string[] = []
+const saved = localStorage.getItem("pokemonFound");
+if (saved) lstPokemonFound = JSON.parse(saved);
 
 const datatexture = new Uint8Array([
     0, 0, 0, 255,
@@ -255,7 +256,6 @@ function addTextToButtons() {
 
     // console.log(currentPokemonName)
     const randomPokemonNames = [currentPokemonName];
-    console.log(randomPokemonNames)
     while (randomPokemonNames.length < buttons.length) {
         const randomIndex = Math.floor(Math.random() * lstPokemon.length);
         const pokemonName = lstPokemon[randomIndex];
@@ -296,7 +296,7 @@ const animation = () => {
     //const delta = timer.getDelta();
     const elapsed = timer.getElapsed();
 
-    if (gameStarted && !infiniteMode) {
+    if (gameState === "playing" && !infiniteMode) {
         const timeRemaining = gameDuration - elapsed;
         if (timeRemaining > 0) updateTimerDisplay(timeRemaining);
         else endGame();
@@ -392,7 +392,7 @@ function try_onClick(event: MouseEvent) {
         }
         return;
     }
-    if (cdtBlock || !gameStarted) return
+    if (cdtBlock || gameState !== "playing") return;
 
     if (intersects.length > 0) {
         cdtBlock = true;
@@ -475,6 +475,7 @@ function correctAnswer() {
     updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
+    localStorage.setItem("pokemonFound", JSON.stringify(lstPokemonFound));
 }
 
 function wrongAnswer() {
@@ -523,6 +524,25 @@ function updateScoreDisplay() {
     scene.add(scoreMesh);
 }
 
+function updateProgressDisplay() {
+    if (!font) return;
+    if (scoreMesh) scene.remove(scoreMesh);
+    const textGeo = new TextGeometry("Score: " + score, {
+        font: font,
+        size: 1.5,
+        depth: 0.5,
+        bevelEnabled: false
+    });
+
+    const textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
+    scoreMesh = new Mesh(textGeo, textMaterial);
+    scoreMesh.layers.set(1)
+    scoreMesh.position.set(-30, 10, 20);
+    scoreMesh.name = "Score"
+    scoreMesh.rotateY(0.4)
+    scene.add(scoreMesh);
+}
+
 function updateTimerDisplay(time: number) {
     if (gameState !== "playing") return;
     if (!font) return;
@@ -543,7 +563,7 @@ function updateTimerDisplay(time: number) {
 }
 
 function endGame() {
-    gameStarted = false;
+    gameState = "gameover";
     if (timerMesh) scene.remove(timerMesh);
     const textGeo = new TextGeometry("GAME OVER - Score: " + score, {
         font: font,
@@ -586,7 +606,6 @@ function startGame() {
     else if (!infiniteMode && timerMesh) timer = new Timer();
 
     gameState = "playing";
-    gameStarted = true;
     score = 0;
     updateScoreDisplay();
     loadData();
