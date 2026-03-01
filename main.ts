@@ -94,6 +94,8 @@ let lstPokemon: string[] = [];
 
 let score = 0;
 let scoreMesh: Mesh | null = null;
+let progressMesh: Mesh | null = null;
+
 let gameDuration = 60; // secondes
 let answerDuration = 500; //millisecondes
 type GameState = "menu" | "playing" | "gameover";
@@ -156,6 +158,10 @@ controls.listenToKeyEvents(window); // optional
 
 function randomPokemon(): string {
     const lstAvailable = availablePokemon();
+    if (lstPokemonFound.length === lstPokemon.length) {
+        alert("Plus de Pokémon à trouver")
+        return "";
+    }
     if (lstAvailable.length === 0) {
         alert("Tous les Pokémon ont été trouvés !");
         showMenu();
@@ -200,7 +206,6 @@ function loadData() {
 
 
 
-// Button to guess the right form #TODO: remplacer par les pokemons
 function createButton(label: string, position: { x: number, y: number, z: number }) {
     let cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
     let material = new MeshPhongMaterial({ color: 0x808080 });
@@ -471,11 +476,12 @@ function correctAnswer() {
     score += 1;
     if (!lstPokemonFound.includes(currentPokemonName)) {
         lstPokemonFound.push(currentPokemonName);
+        localStorage.setItem("pokemonFound", JSON.stringify(lstPokemonFound));
     }
     updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
-    localStorage.setItem("pokemonFound", JSON.stringify(lstPokemonFound));
+    updateProgressDisplay();
 }
 
 function wrongAnswer() {
@@ -525,22 +531,20 @@ function updateScoreDisplay() {
 }
 
 function updateProgressDisplay() {
-    if (!font) return;
-    if (scoreMesh) scene.remove(scoreMesh);
-    const textGeo = new TextGeometry("Score: " + score, {
+    if (progressMesh) scene.remove(progressMesh);
+    const text = `${lstPokemonFound.length} / ${lstPokemon.length}`;
+    const textGeo = new TextGeometry(text, {
         font: font,
         size: 1.5,
         depth: 0.5,
         bevelEnabled: false
     });
-
-    const textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
-    scoreMesh = new Mesh(textGeo, textMaterial);
-    scoreMesh.layers.set(1)
-    scoreMesh.position.set(-30, 10, 20);
-    scoreMesh.name = "Score"
-    scoreMesh.rotateY(0.4)
-    scene.add(scoreMesh);
+    const material = new MeshPhongMaterial({ color: 0x5e0030 });
+    progressMesh = new Mesh(textGeo, material);
+    progressMesh.position.set(-4, -20, 20);
+    progressMesh.layers.disable(0)
+    progressMesh.layers.set(1)
+    scene.add(progressMesh);
 }
 
 function updateTimerDisplay(time: number) {
@@ -607,6 +611,7 @@ function startGame() {
 
     gameState = "playing";
     score = 0;
+    updateProgressDisplay();
     updateScoreDisplay();
     loadData();
     camera.layers.enable(1);
@@ -632,10 +637,7 @@ function availablePokemon(): string[] {
 }
 
 
-// TODO demain faire les modes Tous pokemon et uniquement nouveaux
-// Gérer liste si correcte et pas déjà eu bon alors ajouté à lstPokemonbon
-// if NouveauxPokemon ajouter test dans le pokemon trié
-
+// TODO A rajouter option pour afficher les déjà pokemons trouvés en mode pokedex
 
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);

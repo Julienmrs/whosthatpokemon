@@ -86,6 +86,7 @@ var pointer = new Vector2(0, 0);
 var lstPokemon = [];
 var score = 0;
 var scoreMesh = null;
+var progressMesh = null;
 var gameDuration = 60; // secondes
 var answerDuration = 500; //millisecondes
 var infiniteMode = false;
@@ -147,6 +148,10 @@ var controls = new OrbitControls(camera, renderer.domElement);
 controls.listenToKeyEvents(window); // optional
 function randomPokemon() {
     var lstAvailable = availablePokemon();
+    if (lstPokemonFound.length === lstPokemon.length) {
+        alert("Plus de Pokémon à trouver");
+        return "";
+    }
     if (lstAvailable.length === 0) {
         alert("Tous les Pokémon ont été trouvés !");
         showMenu();
@@ -187,7 +192,6 @@ function loadData() {
         .setResourcePath('/assets/Pokemon_models/' + idPokemon + '/images/')
         .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
 }
-// Button to guess the right form #TODO: remplacer par les pokemons
 function createButton(label, position) {
     var cube = new BoxGeometry(buttonSize, buttonSize, buttonSize);
     var material = new MeshPhongMaterial({ color: 0x808080 });
@@ -233,7 +237,6 @@ function addTextToButtons() {
         return;
     // console.log(currentPokemonName)
     var randomPokemonNames = [currentPokemonName];
-    console.log(randomPokemonNames);
     while (randomPokemonNames.length < buttons.length) {
         var randomIndex = Math.floor(Math.random() * lstPokemon.length);
         var pokemonName = lstPokemon[randomIndex];
@@ -422,11 +425,12 @@ function correctAnswer() {
     score += 1;
     if (!lstPokemonFound.includes(currentPokemonName)) {
         lstPokemonFound.push(currentPokemonName);
+        localStorage.setItem("pokemonFound", JSON.stringify(lstPokemonFound));
     }
     updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
-    localStorage.setItem("pokemonFound", JSON.stringify(lstPokemonFound));
+    updateProgressDisplay();
 }
 function wrongAnswer() {
     flashLights(0xff0000);
@@ -469,23 +473,21 @@ function updateScoreDisplay() {
     scene.add(scoreMesh);
 }
 function updateProgressDisplay() {
-    if (!font)
-        return;
-    if (scoreMesh)
-        scene.remove(scoreMesh);
-    var textGeo = new TextGeometry("Score: " + score, {
+    if (progressMesh)
+        scene.remove(progressMesh);
+    var text = "".concat(lstPokemonFound.length, " / ").concat(lstPokemon.length);
+    var textGeo = new TextGeometry(text, {
         font: font,
         size: 1.5,
         depth: 0.5,
         bevelEnabled: false
     });
-    var textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
-    scoreMesh = new Mesh(textGeo, textMaterial);
-    scoreMesh.layers.set(1);
-    scoreMesh.position.set(-30, 10, 20);
-    scoreMesh.name = "Score";
-    scoreMesh.rotateY(0.4);
-    scene.add(scoreMesh);
+    var material = new MeshPhongMaterial({ color: 0x5e0030 });
+    progressMesh = new Mesh(textGeo, material);
+    progressMesh.position.set(-4, -20, 20);
+    progressMesh.layers.disable(0);
+    progressMesh.layers.set(1);
+    scene.add(progressMesh);
 }
 function updateTimerDisplay(time) {
     if (gameState !== "playing")
@@ -549,6 +551,7 @@ function startGame() {
         timer = new Timer();
     gameState = "playing";
     score = 0;
+    updateProgressDisplay();
     updateScoreDisplay();
     loadData();
     camera.layers.enable(1);
@@ -568,9 +571,7 @@ function availablePokemon() {
     }
     return lstPokemon;
 }
-// TODO demain faire les modes Tous pokemon et uniquement nouveaux
-// Gérer liste si correcte et pas déjà eu bon alors ajouté à lstPokemonbon
-// if NouveauxPokemon ajouter test dans le pokemon trié
+// TODO A rajouter option pour afficher les déjà pokemons trouvés en mode pokedex
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);
 //# sourceMappingURL=main.js.map
