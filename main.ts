@@ -53,11 +53,6 @@ import { Font } from 'three/addons/loaders/FontLoader.js';
 import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 
-
-
-
-
-
 // INSERT CODE HERE
 
 // Init
@@ -103,7 +98,9 @@ let INTERSECTED: any;
 let pointer = new Vector2(0, 0);
 let lstPokemon: string[] = [];
 const clock = new Clock();
+
 let score = 0;
+let scoreMesh: Mesh | null = null;
 
 let cdtBlock = false;
 
@@ -124,6 +121,7 @@ function fontLoad() {
         console.log("Font loaded");
         font = new Font(json);
         addTextToButtons();
+        updateScoreDisplay();
     });
 }
 
@@ -248,6 +246,7 @@ function createTextMesh(label: string, id: number): Mesh {
 
 function addTextToButtons() {
 
+    console.log(currentPokemonName)
     const randomPokemonNames = [currentPokemonName];
     console.log(randomPokemonNames)
     while (randomPokemonNames.length < buttons.length) {
@@ -421,14 +420,10 @@ function revealPokemon() {
         }
     });
 }
-const material = new MeshToonMaterial({
-    color: new Color().setHSL(1, 0.5, 1 * 0.5 + 0.1).multiplyScalar(1 - 1 * 0.2),
-
-});
-
 
 function correctAnswer() {
     score += 1;
+    updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
 }
@@ -459,6 +454,30 @@ function nextPokemon() {
     changeShape();
     addTextToButtons();
 }
+
+function updateScoreDisplay() {
+    if (!font) return;
+    if (scoreMesh) scene.remove(scoreMesh);
+    const textGeo = new TextGeometry("Score: " + score, {
+        font: font,
+        size: 1.5,
+        depth: 0.5,
+        bevelEnabled: false
+    });
+
+    const textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
+    scoreMesh = new Mesh(textGeo, textMaterial);
+
+    scoreMesh.position.set(-30, 10, 20);
+    scoreMesh.rotateY(0.4)
+    scene.add(scoreMesh);
+}
+
+
+// TODO Ajouter Chronometre Epreuve
+// TODO Ajouter Chronometre fin d'épreuve
+
+
 
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);

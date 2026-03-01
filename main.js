@@ -87,6 +87,7 @@ var pointer = new Vector2(0, 0);
 var lstPokemon = [];
 var clock = new Clock();
 var score = 0;
+var scoreMesh = null;
 var cdtBlock = false;
 var datatexture = new Uint8Array([
     0, 0, 0, 255,
@@ -103,6 +104,7 @@ function fontLoad() {
         console.log("Font loaded");
         font = new Font(json);
         addTextToButtons();
+        updateScoreDisplay();
     });
 }
 function listPokemonLoad() {
@@ -217,6 +219,7 @@ function createTextMesh(label, id) {
     return textMesh;
 }
 function addTextToButtons() {
+    console.log(currentPokemonName);
     var randomPokemonNames = [currentPokemonName];
     console.log(randomPokemonNames);
     while (randomPokemonNames.length < buttons.length) {
@@ -340,11 +343,11 @@ function revealPokemon() {
         if (obj.isMesh) {
             var mesh = obj;
             if (originalMaterials.has(mesh)) {
-                var material_1 = originalMaterials.get(mesh);
-                if (!material_1)
+                var material = originalMaterials.get(mesh);
+                if (!material)
                     return;
-                if (Array.isArray(material_1)) {
-                    mesh.material = material_1.map(function (mat) {
+                if (Array.isArray(material)) {
+                    mesh.material = material.map(function (mat) {
                         var _a;
                         return new MeshToonMaterial({
                             map: (_a = mat.map) !== null && _a !== void 0 ? _a : null,
@@ -355,7 +358,7 @@ function revealPokemon() {
                 }
                 else {
                     mesh.material = new MeshToonMaterial({
-                        map: (_a = material_1.map) !== null && _a !== void 0 ? _a : null,
+                        map: (_a = material.map) !== null && _a !== void 0 ? _a : null,
                         color: 0xffffff,
                         gradientMap: toonGradient
                     });
@@ -364,11 +367,9 @@ function revealPokemon() {
         }
     });
 }
-var material = new MeshToonMaterial({
-    color: new Color().setHSL(1, 0.5, 1 * 0.5 + 0.1).multiplyScalar(1 - 1 * 0.2),
-});
 function correctAnswer() {
     score += 1;
+    updateScoreDisplay();
     flashLights(0x00ff00);
     // Allume les lumières en vert pendant 5 secondes
 }
@@ -393,6 +394,26 @@ function nextPokemon() {
     changeShape();
     addTextToButtons();
 }
+function updateScoreDisplay() {
+    if (!font)
+        return;
+    if (scoreMesh)
+        scene.remove(scoreMesh);
+    var textGeo = new TextGeometry("Score: " + score, {
+        font: font,
+        size: 1.5,
+        depth: 0.5,
+        bevelEnabled: false
+    });
+    var textMaterial = new MeshPhongMaterial({ color: 0x4d7290 });
+    scoreMesh = new Mesh(textGeo, textMaterial);
+    scoreMesh.position.set(-30, 10, 20);
+    scoreMesh.rotateY(0.4);
+    scene.add(scoreMesh);
+}
+// TODO Ajouter score visible qui évolue avec le temps
+// TODO Ajouter Chronometre Epreuve
+// TODO Ajouter Chronometre fin d'épreuve
 document.addEventListener('click', try_onClick);
 document.addEventListener('mousemove', onPointerMove);
 //# sourceMappingURL=main.js.map
