@@ -197,8 +197,8 @@ function loadData() {
     if (!idPokemon) return;
     currentPokemonName = idPokemon;
     new GLTFLoader()
-        .setPath('/assets/Pokemon_models/' + idPokemon)
-        .setResourcePath('/assets/Pokemon_models/' + idPokemon + '/images/')
+        .setPath('assets/Pokemon_models/' + idPokemon)
+        .setResourcePath('assets/Pokemon_models/' + idPokemon + '/images/')
         .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
 }
 
