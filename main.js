@@ -123,7 +123,7 @@ function listPokemonLoad() {
         var response, text, list;
         return __generator(this, function (_a) {
             switch (_a.label) {
-                case 0: return [4 /*yield*/, fetch("/assets/lst_pokemon.txt")];
+                case 0: return [4 /*yield*/, fetch("assets/lst_pokemon.txt")];
                 case 1:
                     response = _a.sent();
                     return [4 /*yield*/, response.text()];
@@ -188,8 +188,8 @@ function loadData() {
         return;
     currentPokemonName = idPokemon;
     new GLTFLoader()
-        .setPath('/assets/Pokemon_models/' + idPokemon)
-        .setResourcePath('/assets/Pokemon_models/' + idPokemon + '/images/')
+        .setPath('assets/Pokemon_models/' + idPokemon)
+        .setResourcePath('assets/Pokemon_models/' + idPokemon + '/images/')
         .load('/' + idPokemon.toLowerCase() + '.glb', gltfReader);
 }
 function createButton(label, position) {
