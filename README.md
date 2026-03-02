@@ -41,5 +41,5 @@ Exemple d'interraction:
 
 <img width="1265" height="685" alt="image" src="https://github.com/user-attachments/assets/62978acd-849d-4702-afbb-ccf94f5d700a" /> Fin du jeu
 
-Test en ligne (ça ne marche pas du à un problème de lecture de fichier)
+Test en ligne 
 https://julienmrs.github.io/whosthatpokemon/
