@@ -133,7 +133,7 @@ function fontLoad() {
 fontLoad();
 
 async function listPokemonLoad(): Promise<string[]> {
-    const response = await fetch("/assets/lst_pokemon.txt");
+    const response = await fetch("assets/lst_pokemon.txt");
     const text = await response.text();
 
     const list = text
